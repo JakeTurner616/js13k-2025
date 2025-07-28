@@ -1,0 +1,37 @@
+{
+  "compilerOptions": {
+    /* Output target */
+    "target": "ESNext",
+    "module": "ESNext",
+    "lib": ["ES2022", "DOM"],
+
+    /* Module & Resolution */
+    "moduleResolution": "bundler",
+    "allowImportingTsExtensions": true,
+    "verbatimModuleSyntax": true,
+    "moduleDetection": "force",
+
+    /* Emit control */
+    "noEmit": true,
+    "removeComments": true,
+    "noEmitHelpers": true,
+    "importHelpers": false,
+
+    /* Class behavior */
+    "useDefineForClassFields": true,
+
+    /* Strictness & Safety */
+    "strict": true,
+    "noUnusedLocals": true,
+    "noUnusedParameters": true,
+    "noFallthroughCasesInSwitch": true,
+    "noUncheckedSideEffectImports": true,
+
+    /* JS13k-lean */
+    "erasableSyntaxOnly": true,
+    "esModuleInterop": false,
+    "forceConsistentCasingInFileNames": true,
+    "skipLibCheck": true
+  },
+  "include": ["src"]
+}
