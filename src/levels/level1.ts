@@ -1,0 +1,3 @@
+export const LEVEL_1_BASE64 = "eJzt0bEJACAUQ8HvaO6/lLV9wIB3kD7wZgAAAAAA+NF+fYCLHl306KJHFz2yVmDkHNYZAVc=";
+export const LEVEL_1_WIDTH = 100;
+export const LEVEL_1_HEIGHT = 20;

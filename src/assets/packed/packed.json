@@ -1,0 +1,75 @@
+{"frames": {
+
+"player flip spin 48x48-Sheet-Sheet":
+{
+	"frame": {"x":240,"y":0,"w":288,"h":48},
+	"rotated": false,
+	"trimmed": false,
+	"spriteSourceSize": {"x":0,"y":0,"w":288,"h":48},
+	"sourceSize": {"w":288,"h":48},
+	"pivot": {"x":0.5,"y":0.5}
+},
+"Player Idle 48x48":
+{
+	"frame": {"x":432,"y":96,"w":480,"h":48},
+	"rotated": false,
+	"trimmed": false,
+	"spriteSourceSize": {"x":0,"y":0,"w":480,"h":48},
+	"sourceSize": {"w":480,"h":48},
+	"pivot": {"x":0.5,"y":0.5}
+},
+"player land 48x48":
+{
+	"frame": {"x":0,"y":96,"w":432,"h":48},
+	"rotated": false,
+	"trimmed": false,
+	"spriteSourceSize": {"x":0,"y":0,"w":432,"h":48},
+	"sourceSize": {"w":432,"h":48},
+	"pivot": {"x":0.5,"y":0.5}
+},
+"player ledge climb 48x48":
+{
+	"frame": {"x":0,"y":0,"w":240,"h":48},
+	"rotated": false,
+	"trimmed": false,
+	"spriteSourceSize": {"x":0,"y":0,"w":240,"h":48},
+	"sourceSize": {"w":240,"h":48},
+	"pivot": {"x":0.5,"y":0.5}
+},
+"player new jump 48x48":
+{
+	"frame": {"x":528,"y":0,"w":288,"h":48},
+	"rotated": false,
+	"trimmed": false,
+	"spriteSourceSize": {"x":0,"y":0,"w":288,"h":48},
+	"sourceSize": {"w":288,"h":48},
+	"pivot": {"x":0.5,"y":0.5}
+},
+"Player Roll 48x48":
+{
+	"frame": {"x":0,"y":48,"w":336,"h":48},
+	"rotated": false,
+	"trimmed": false,
+	"spriteSourceSize": {"x":0,"y":0,"w":336,"h":48},
+	"sourceSize": {"w":336,"h":48},
+	"pivot": {"x":0.5,"y":0.5}
+},
+"player run 48x48":
+{
+	"frame": {"x":336,"y":48,"w":384,"h":48},
+	"rotated": false,
+	"trimmed": false,
+	"spriteSourceSize": {"x":0,"y":0,"w":384,"h":48},
+	"sourceSize": {"w":384,"h":48},
+	"pivot": {"x":0.5,"y":0.5}
+}},
+"meta": {
+	"app": "https://www.codeandweb.com/texturepacker",
+	"version": "1.0",
+	"image": "packed.png",
+	"format": "RGBA8888",
+	"size": {"w":912,"h":144},
+	"scale": "1",
+	"smartupdate": "$TexturePacker:SmartUpdate:aa66b91fc9edd461238001395fe05587:6b39959a3523bfffb08f7ca0861658eb:de62c4130a72712ae995d05d7f4a14e5$"
+}
+}
