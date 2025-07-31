@@ -1,3 +1,5 @@
+// src/player/states/Idle.ts
+
 import type { State, InputState } from "./types";
 
 export const Idle: State = {
@@ -7,8 +9,7 @@ export const Idle: State = {
   },
 
   update(player, input: InputState) {
-    if (input.jump) {
-      player.vel.y = -player.jumpSpeed;
+    if (input.jump && player.grounded) {
       player.setState("jump");
     } else if (input.left || input.right) {
       player.setState("run");

@@ -1,8 +1,12 @@
+// src/player/states/Jump.ts
+
 import type { State, InputState } from "./types";
 
 export const Jump: State = {
   enter(player) {
     player.setAnimation("jump");
+    player.grounded = false;
+    player.vel.y = -player.jumpSpeed;
   },
 
   update(player, input: InputState) {
@@ -14,8 +18,9 @@ export const Jump: State = {
       player.vel.x = speed;
     }
 
-    if (player.vel.y >= 0) {
-      player.setState("idle");
+    // If landed, go back to idle or run
+    if (player.grounded) {
+      player.setState(input.left || input.right ? "run" : "idle");
     }
   }
 };

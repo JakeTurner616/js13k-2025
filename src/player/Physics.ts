@@ -13,7 +13,7 @@ export interface PhysicsBody {
   grounded: boolean;
 }
 
-const GRAVITY = 0.5;
+const GRAVITY = 0.14;
 const TILE_SIZE = 32;
 
 // Solid tile tracking

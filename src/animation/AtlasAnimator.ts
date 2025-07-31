@@ -28,7 +28,9 @@ export class AtlasAnimator {
     this.frameH = frameHeight;
     this.animations = animations;
   }
-
+getMeta(name: string) {
+  return this.animations.find(anim => anim.name === name);
+}
   drawAll(ctx: CanvasRenderingContext2D, time: number) {
     for (const anim of this.animations) {
       const frameIndex = Math.floor((time / 1000) * anim.fps) % anim.frameCount;

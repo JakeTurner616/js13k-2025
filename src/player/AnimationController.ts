@@ -1,13 +1,11 @@
-// src/player/AnimationController.ts
+// AnimationController.ts
+import type { Player } from "./Player"; // Adjust the path if needed
+export type AnimationName = "idle" | "run" | "jump"; // Only these allowed
 
-import type { Player } from "./Player";
-
-// Define all animation names used in the sprite atlas
-type AnimationName = "idle" | "run" | "jump";
+const VALID: Set<string> = new Set(["idle", "run", "jump"]);
 
 export class AnimationController {
   private current: AnimationName = "idle";
-
   private player: Player;
 
   constructor(player: Player) {
@@ -15,9 +13,11 @@ export class AnimationController {
   }
 
   set(state: AnimationName) {
+    if (!VALID.has(state)) return; // 💥 invalid input ignored
     if (state === this.current) return;
+
     this.current = state;
-    this.player.setAnimation(state);
+    this.player.setAnimation(state); // optional if loop-safe
   }
 
   getCurrent(): AnimationName {

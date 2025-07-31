@@ -38,8 +38,8 @@ resizeCanvas();
 
 setupInput();
 const camera = { x: 0, y: 0 };
-const player = new Player();
 
+let player: Player;
 let animator: any;
 let animationReady = false;
 
@@ -47,6 +47,8 @@ createAnimator((loadedAnimator) => {
   animator = loadedAnimator;
   animationReady = true;
   console.log("[Animator] Loaded");
+
+  player = new Player(animator);
 
   loadLevel1();
   console.log("[Map] Loading initiated");
@@ -86,7 +88,7 @@ function loop(time: number) {
   }
 
   player.update(getInputState(), ctx);
-  player.draw(ctx);
+  player.draw(ctx, time);
 
   animator.drawAll(ctx, time);
   requestAnimationFrame(loop);
