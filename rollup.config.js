@@ -1,6 +1,9 @@
+// rollup.config.js
+
 import typescript from "@rollup/plugin-typescript";
 import { terser } from "rollup-plugin-terser";
 import fs from "fs";
+import path from "path";
 
 /**
  * Custom plugin to inline minified JS directly into HTML using raw string for eval
@@ -17,6 +20,31 @@ function inlineIntoHTML({ jsFile, htmlTemplate, outputFile }) {
       const inlined = `<script>eval('${js}')</script>`;
       fs.writeFileSync(outputFile, html.replace("</body>", `${inlined}</body>`));
       fs.unlinkSync(jsFile);
+    }
+  };
+}
+
+/**
+ * Plugin to copy static assets from public/ to dist/
+ */
+function copyPublicFolder() {
+  return {
+    name: "copy-public-folder",
+    buildStart() {
+      const srcDir = path.resolve("public");
+      const destDir = path.resolve("dist");
+
+      if (!fs.existsSync(srcDir)) return;
+
+      if (!fs.existsSync(destDir)) {
+        fs.mkdirSync(destDir, { recursive: true });
+      }
+
+      for (const file of fs.readdirSync(srcDir)) {
+        const srcFile = path.join(srcDir, file);
+        const destFile = path.join(destDir, file);
+        fs.copyFileSync(srcFile, destFile);
+      }
     }
   };
 }
@@ -56,6 +84,7 @@ export default {
         ascii_only: true
       }
     }),
+    copyPublicFolder(), // <-- NEW plugin added
     inlineIntoHTML({
       jsFile: "dist/tmp.js",
       htmlTemplate: "src/template.html",

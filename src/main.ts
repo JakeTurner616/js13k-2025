@@ -1,3 +1,5 @@
+// src/main.ts
+
 import { createAnimator } from "./atlas/animationAtlas";
 import { loadLevel1, getCurrentMap } from "./engine/level-loader.ts";
 import { drawTile, isTileAtlasReady } from "./tileset/tilemap.ts";
@@ -45,14 +47,16 @@ function loop(time: number) {
         const tile = map.tiles[index];
         if (tile === 0) continue;
 
+        const tileKey = `Tile_${String(tile).padStart(2, "0")}`;
+
         if (drawn < 10) {
           console.log(
-            `Tile[${index}] = ${tile}, drawing at (${col * tileSize}, ${row * tileSize})`
+            `Tile[${index}] = ${tile} → ${tileKey}, drawing at (${col * tileSize}, ${row * tileSize})`
           );
           drawn++;
         }
 
-        drawTile(ctx, tile - 1, col * tileSize, row * tileSize);
+        drawTile(ctx, tileKey, col * tileSize, row * tileSize);
       }
     }
 
