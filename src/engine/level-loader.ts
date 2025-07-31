@@ -5,6 +5,7 @@ import {
   LEVEL_1_WIDTH,
   LEVEL_1_HEIGHT
 } from "../levels/level1.ts";
+import { setSolidTiles } from "../player/Physics";
 
 let currentMap: {
   width: number;
@@ -20,17 +21,22 @@ function decodeBase64ZlibToUint32Array(encoded: string): Uint32Array {
 
   const arr = new Uint32Array(tileCount);
   for (let i = 0; i < tileCount; i++) {
-    arr[i] = view.getUint32(i * 4, true); // little-endian
+    arr[i] = view.getUint32(i * 4, true);
   }
   return arr;
 }
 
 export function loadLevel1() {
+  const tiles = decodeBase64ZlibToUint32Array(LEVEL_1_BASE64);
   currentMap = {
     width: LEVEL_1_WIDTH,
     height: LEVEL_1_HEIGHT,
-    tiles: decodeBase64ZlibToUint32Array(LEVEL_1_BASE64)
+    tiles
   };
+
+  // Define which tile IDs are solid
+  const solidTileIds = Array.from({ length: 72 }, (_, i) => i + 1); // all for now
+  setSolidTiles(solidTileIds);
 }
 
 export function getCurrentMap() {
