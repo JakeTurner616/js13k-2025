@@ -9,48 +9,38 @@ export interface AnimationConfig {
 }
 
 export class AtlasAnimator {
-  private atlas: HTMLImageElement;
+  private img: HTMLImageElement;
   private meta: AtlasMeta;
-  private frameW: number;
-  private frameH: number;
-  private animations: AnimationConfig[];
+  private fw: number;
+  private fh: number;
+  private anims: AnimationConfig[];
 
   constructor(
-    atlasImage: HTMLImageElement,
+    img: HTMLImageElement,
     meta: AtlasMeta,
-    frameWidth: number,
-    frameHeight: number,
-    animations: AnimationConfig[]
+    fw: number,
+    fh: number,
+    anims: AnimationConfig[]
   ) {
-    this.atlas = atlasImage;
+    this.img = img;
     this.meta = meta;
-    this.frameW = frameWidth;
-    this.frameH = frameHeight;
-    this.animations = animations;
+    this.fw = fw;
+    this.fh = fh;
+    this.anims = anims;
   }
-getMeta(name: string) {
-  return this.animations.find(anim => anim.name === name);
-}
-  drawAll(ctx: CanvasRenderingContext2D, time: number) {
-    for (const anim of this.animations) {
-      const frameIndex = Math.floor((time / 1000) * anim.fps) % anim.frameCount;
-      this.drawFrame(ctx, anim.name, frameIndex, anim.dx, anim.dy);
+
+  getMeta = (name: string) => this.anims.find(a => a.name === name);
+
+  drawAll(ctx: CanvasRenderingContext2D, t: number) {
+    for (let a of this.anims) {
+      const f = ((t / 1e3 * a.fps) | 0) % a.frameCount;
+      this.drawFrame(ctx, a.name, f, a.dx, a.dy);
     }
   }
 
-  drawFrame(
-    ctx: CanvasRenderingContext2D,
-    name: string,
-    frameIndex: number,
-    dx: number,
-    dy: number
-  ) {
-    const { x, y } = this.meta[name];
-    const sx = x + frameIndex * this.frameW;
-    ctx.drawImage(
-      this.atlas,
-      sx | 0, y | 0, this.frameW, this.frameH,
-      dx | 0, dy | 0, this.frameW, this.frameH
-    );
+  drawFrame(ctx: CanvasRenderingContext2D, name: string, i: number, dx: number, dy: number) {
+    const m = this.meta[name];
+    const sx = m.x + i * this.fw;
+    ctx.drawImage(this.img, sx | 0, m.y | 0, this.fw, this.fh, dx | 0, dy | 0, this.fw, this.fh);
   }
 }

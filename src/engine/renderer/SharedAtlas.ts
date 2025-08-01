@@ -23,8 +23,8 @@ function makeAtlas(src: string): Atlas {
 }
 
 const atlases = {
-  anim: makeAtlas("/packed.png"),
-  tile: makeAtlas("/map.png")
+  anim: makeAtlas("./packed.png"),
+  tile: makeAtlas("./map.png")
 };
 
 export const getAtlasImage = (k: "anim" | "tile") => atlases[k].img;

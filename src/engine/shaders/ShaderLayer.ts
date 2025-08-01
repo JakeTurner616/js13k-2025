@@ -1,5 +1,3 @@
-// src/engine/shaders/ShaderLayer.ts
-
 export class ShaderLayer {
   gl: WebGLRenderingContext;
   p: WebGLProgram;
@@ -15,10 +13,10 @@ export class ShaderLayer {
     this.t = g.createTexture()!;
     const v = "attribute vec2 p;void main(){gl_Position=vec4(p,0.,1.);}";
     const vs = g.createShader(g.VERTEX_SHADER)!;
-    g.shaderSource(vs, v);
-    g.compileShader(vs);
     const fs = g.createShader(g.FRAGMENT_SHADER)!;
+    g.shaderSource(vs, v);
     g.shaderSource(fs, f);
+    g.compileShader(vs);
     g.compileShader(fs);
     const p = g.createProgram()!;
     g.attachShader(p, vs);
@@ -35,22 +33,20 @@ export class ShaderLayer {
   }
 
   drawMasked(t: number, m: HTMLCanvasElement, b: [number, number, number, number]) {
-    const g = this.gl;
-    const [x, y, w, h] = b;
-    const fy = this.c.height - (y + h);
+    const g = this.gl, p = this.p, [x, y, w, h] = b, fy = this.c.height - (y + h);
     g.viewport(x, fy, w, h);
-    g.useProgram(this.p);
-    const a = g.getAttribLocation(this.p, "p");
+    g.useProgram(p);
+    const a = g.getAttribLocation(p, "p");
     g.enableVertexAttribArray(a);
     g.bindBuffer(g.ARRAY_BUFFER, this.b);
     g.vertexAttribPointer(a, 2, g.FLOAT, false, 0, 0);
     g.activeTexture(g.TEXTURE0);
     g.bindTexture(g.TEXTURE_2D, this.t);
     g.texImage2D(g.TEXTURE_2D, 0, g.RGBA, g.RGBA, g.UNSIGNED_BYTE, m);
-    g.uniform1i(g.getUniformLocation(this.p, "sprite"), 0);
-    g.uniform1f(g.getUniformLocation(this.p, "t"), t);
-    g.uniform2f(g.getUniformLocation(this.p, "r"), this.c.width, this.c.height);
-    g.uniform2f(g.getUniformLocation(this.p, "u_offset"), x, fy);
+    g.uniform1i(g.getUniformLocation(p, "sprite"), 0);
+    g.uniform1f(g.getUniformLocation(p, "t"), t);
+    g.uniform2f(g.getUniformLocation(p, "r"), this.c.width, this.c.height);
+    g.uniform2f(g.getUniformLocation(p, "u_offset"), x, fy);
     g.drawArrays(g.TRIANGLES, 0, 3);
   }
 }

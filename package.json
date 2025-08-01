@@ -20,5 +20,10 @@
     "tslib": "^2.8.1",
     "typescript": "~5.8.3",
     "vite": "^7.0.4"
+  },
+  "dependencies": {
+    "@rollup/plugin-node-resolve": "^16.0.1",
+    "fflate": "^0.8.2",
+    "tiny-inflate": "^1.0.3"
   }
 }

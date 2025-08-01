@@ -1,37 +1,21 @@
-// src/engine/input.ts
-
-const keys: Record<string, boolean> = {};
-
-export type InputState = {
-  left: boolean;
-  right: boolean;
-  up: boolean;
-  down: boolean;
-  jump: boolean;
+const k: Record<number, boolean> = {};
+const m = {
+  l: [65, 37], r: [68, 39], // A/D or arrows
+  u: [87, 38], d: [83, 40], // W/S or arrows
+  j: [32]                   // space
 };
 
-/**
- * Initializes input listeners and tracks current key state.
- */
 export function setupInput() {
-  window.addEventListener("keydown", (e) => {
-    keys[e.code] = true;
-  });
-
-  window.addEventListener("keyup", (e) => {
-    keys[e.code] = false;
-  });
+  addEventListener("keydown", e => k[e.keyCode] = true);
+  addEventListener("keyup", e => k[e.keyCode] = false);
 }
 
-/**
- * Returns a normalized input snapshot for game logic.
- */
-export function getInputState(): InputState {
+export function getInputState() {
   return {
-    left: keys["ArrowLeft"] || keys["KeyA"] || false,
-    right: keys["ArrowRight"] || keys["KeyD"] || false,
-    up: keys["ArrowUp"] || keys["KeyW"] || false,
-    down: keys["ArrowDown"] || keys["KeyS"] || false,
-    jump: keys["Space"] || false
+    left:  m.l.some(c => k[c]),
+    right: m.r.some(c => k[c]),
+    up:    m.u.some(c => k[c]),
+    down:  m.d.some(c => k[c]),
+    jump:  m.j.some(c => k[c]),
   };
 }

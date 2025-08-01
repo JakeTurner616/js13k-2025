@@ -1,4 +1,6 @@
-import { inflate } from "pako";
+// src/engine/renderer/level-loader.ts
+
+import { decodeBase64RLEToUint32Array } from "../Inflate";
 import {
   LEVEL_1_BASE64,
   LEVEL_1_WIDTH,
@@ -6,23 +8,13 @@ import {
 } from "../../levels/level1.ts";
 
 import { setSolidTiles } from "../../player/Physics.ts";
-import { setCurrentMap, getCurrentMap } from "./MapContext.ts"; // ✅ Add this import
+import { setCurrentMap, getCurrentMap } from "./MapContext.ts";
 
-function decodeBase64ZlibToUint32Array(encoded: string): Uint32Array {
-  const binary = Uint8Array.from(atob(encoded), c => c.charCodeAt(0));
-  const decompressed = inflate(binary);
-  const view = new DataView(decompressed.buffer);
-  const tileCount = decompressed.byteLength / 4;
-
-  const arr = new Uint32Array(tileCount);
-  for (let i = 0; i < tileCount; i++) {
-    arr[i] = view.getUint32(i * 4, true);
-  }
-  return arr;
-}
-
+/**
+ * Loads level 1 from compressed RLE base64 data and sets up the map context.
+ */
 export function loadLevel1() {
-  const tiles = decodeBase64ZlibToUint32Array(LEVEL_1_BASE64);
+  const tiles = decodeBase64RLEToUint32Array(LEVEL_1_BASE64);
   const map = {
     width: LEVEL_1_WIDTH,
     height: LEVEL_1_HEIGHT,
@@ -31,8 +23,9 @@ export function loadLevel1() {
 
   setCurrentMap(map);
 
+  // You can fine-tune this list if you later add non-solid tiles
   const solidTileIds = Array.from({ length: 72 }, (_, i) => i + 1);
   setSolidTiles(solidTileIds);
 }
 
-export { getCurrentMap }; // ✅ Re-export here
+export { getCurrentMap };
