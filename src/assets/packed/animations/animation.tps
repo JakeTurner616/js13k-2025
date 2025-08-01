@@ -50,7 +50,7 @@
         <key>dxtCompressionMode</key>
         <enum type="SettingsBase::DxtCompressionMode">DXT_PERCEPTUAL</enum>
         <key>ditherType</key>
-        <enum type="SettingsBase::DitherType">NearestNeighbour</enum>
+        <enum type="SettingsBase::DitherType">PngQuantLow</enum>
         <key>backgroundColor</key>
         <uint>0</uint>
         <key>libGdx</key>
@@ -68,13 +68,13 @@
         <key>jpgQuality</key>
         <uint>80</uint>
         <key>pngOptimizationLevel</key>
-        <uint>0</uint>
+        <uint>1</uint>
         <key>webpQualityLevel</key>
         <uint>101</uint>
         <key>textureSubPath</key>
         <string></string>
         <key>textureFormat</key>
-        <enum type="SettingsBase::TextureFormat">png</enum>
+        <enum type="SettingsBase::TextureFormat">png8</enum>
         <key>borderPadding</key>
         <uint>0</uint>
         <key>maxTextureSize</key>
@@ -94,7 +94,7 @@
         <key>algorithmSettings</key>
         <struct type="AlgorithmSettings">
             <key>algorithm</key>
-            <enum type="AlgorithmSettings::AlgorithmId">Basic</enum>
+            <enum type="AlgorithmSettings::AlgorithmId">MaxRects</enum>
             <key>freeSizeMode</key>
             <enum type="AlgorithmSettings::AlgorithmFreeSizeMode">Best</enum>
             <key>sizeConstraints</key>
@@ -141,9 +141,9 @@
             <string></string>
         </struct>
         <key>autoAliasEnabled</key>
-        <false/>
-        <key>trimSpriteNames</key>
         <true/>
+        <key>trimSpriteNames</key>
+        <false/>
         <key>prependSmartFolderName</key>
         <false/>
         <key>autodetectAnimations</key>
@@ -169,12 +169,12 @@
             <key>defaultPivotPoint</key>
             <point_f>0.5,0.5</point_f>
             <key>writePivotPoints</key>
-            <true/>
+            <false/>
         </struct>
         <key>individualSpriteSettings</key>
         <map type="IndividualSpriteSettingsMap">
-            <key type="filename">../unpacked/Air Spin/player flip spin 48x48-Sheet-Sheet.png</key>
-            <key type="filename">../unpacked/Jump/player new jump 48x48.png</key>
+            <key type="filename">../../unpacked/Air Spin/player flip spin 48x48-Sheet-Sheet.png</key>
+            <key type="filename">../../unpacked/Jump/player new jump 48x48.png</key>
             <struct type="IndividualSpriteSettings">
                 <key>pivotPoint</key>
                 <point_f>0.5,0.5</point_f>
@@ -189,7 +189,7 @@
                 <key>scale9FromFile</key>
                 <false/>
             </struct>
-            <key type="filename">../unpacked/Idle/Player Idle 48x48.png</key>
+            <key type="filename">../../unpacked/Idle/Player Idle 48x48.png</key>
             <struct type="IndividualSpriteSettings">
                 <key>pivotPoint</key>
                 <point_f>0.5,0.5</point_f>
@@ -204,7 +204,7 @@
                 <key>scale9FromFile</key>
                 <false/>
             </struct>
-            <key type="filename">../unpacked/Land/player land 48x48.png</key>
+            <key type="filename">../../unpacked/Land/player land 48x48.png</key>
             <struct type="IndividualSpriteSettings">
                 <key>pivotPoint</key>
                 <point_f>0.5,0.5</point_f>
@@ -219,7 +219,7 @@
                 <key>scale9FromFile</key>
                 <false/>
             </struct>
-            <key type="filename">../unpacked/Ledge Grab-Climb/player ledge climb 48x48.png</key>
+            <key type="filename">../../unpacked/Ledge Grab-Climb/player ledge climb 48x48.png</key>
             <struct type="IndividualSpriteSettings">
                 <key>pivotPoint</key>
                 <point_f>0.5,0.5</point_f>
@@ -234,7 +234,7 @@
                 <key>scale9FromFile</key>
                 <false/>
             </struct>
-            <key type="filename">../unpacked/Roll/Player Roll 48x48.png</key>
+            <key type="filename">../../unpacked/Roll/Player Roll 48x48.png</key>
             <struct type="IndividualSpriteSettings">
                 <key>pivotPoint</key>
                 <point_f>0.5,0.5</point_f>
@@ -249,7 +249,7 @@
                 <key>scale9FromFile</key>
                 <false/>
             </struct>
-            <key type="filename">../unpacked/Run/player run 48x48.png</key>
+            <key type="filename">../../unpacked/Run/player run 48x48.png</key>
             <struct type="IndividualSpriteSettings">
                 <key>pivotPoint</key>
                 <point_f>0.5,0.5</point_f>
@@ -271,13 +271,13 @@
             <struct type="SpriteSheet">
                 <key>files</key>
                 <array>
-                    <filename>../unpacked/Air Spin</filename>
-                    <filename>../unpacked/Idle</filename>
-                    <filename>../unpacked/Jump</filename>
-                    <filename>../unpacked/Land</filename>
-                    <filename>../unpacked/Ledge Grab-Climb</filename>
-                    <filename>../unpacked/Roll</filename>
-                    <filename>../unpacked/Run</filename>
+                    <filename>../../unpacked/Run/player run 48x48.png</filename>
+                    <filename>../../unpacked/Roll/Player Roll 48x48.png</filename>
+                    <filename>../../unpacked/Ledge Grab-Climb/player ledge climb 48x48.png</filename>
+                    <filename>../../unpacked/Land/player land 48x48.png</filename>
+                    <filename>../../unpacked/Jump/player new jump 48x48.png</filename>
+                    <filename>../../unpacked/Idle/Player Idle 48x48.png</filename>
+                    <filename>../../unpacked/Air Spin/player flip spin 48x48-Sheet-Sheet.png</filename>
                 </array>
             </struct>
         </map>
