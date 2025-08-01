@@ -1,10 +1,8 @@
-// src/atlas/animationAtlas.ts
-
 import { AtlasAnimator } from "../animation/AtlasAnimator";
 import {
-  getAnimationAtlasImage,
-  waitForAnimationAtlas
-} from "../engine/sharedAnimationAtlasImage";
+  getAtlasImage,
+  waitForAtlas
+} from "../engine/renderer/SharedAtlas";
 
 // TexturePacker "frame" data mapped directly
 export const atlasMeta = {
@@ -29,8 +27,8 @@ export const animations = [
 ];
 
 export function createAnimator(callback: (animator: AtlasAnimator) => void) {
-  waitForAnimationAtlas().then(() => {
-    const img = getAnimationAtlasImage();
+  waitForAtlas("anim").then(() => {
+    const img = getAtlasImage("anim");
     const animator = new AtlasAnimator(img, atlasMeta, 48, 48, animations);
     callback(animator);
   });

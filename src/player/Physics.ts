@@ -1,6 +1,6 @@
 // src/player/Physics.ts
 
-import { getCurrentMap } from "../engine/MapContext.ts";
+import { getCurrentMap } from "../engine/renderer/MapContext.ts";
 
 export type Vec2 = { x: number; y: number };
 
