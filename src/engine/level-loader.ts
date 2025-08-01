@@ -1,17 +1,14 @@
 // src/engine/level-loader.ts
+
 import { inflate } from "pako";
 import {
   LEVEL_1_BASE64,
   LEVEL_1_WIDTH,
   LEVEL_1_HEIGHT
 } from "../levels/level1.ts";
-import { setSolidTiles } from "../player/Physics";
 
-let currentMap: {
-  width: number;
-  height: number;
-  tiles: Uint32Array;
-} | null = null;
+import { setSolidTiles } from "../player/Physics";
+import { setCurrentMap } from "./MapContext.ts";
 
 function decodeBase64ZlibToUint32Array(encoded: string): Uint32Array {
   const binary = Uint8Array.from(atob(encoded), c => c.charCodeAt(0));
@@ -28,17 +25,14 @@ function decodeBase64ZlibToUint32Array(encoded: string): Uint32Array {
 
 export function loadLevel1() {
   const tiles = decodeBase64ZlibToUint32Array(LEVEL_1_BASE64);
-  currentMap = {
+  const map = {
     width: LEVEL_1_WIDTH,
     height: LEVEL_1_HEIGHT,
     tiles
   };
 
-  // Define which tile IDs are solid
-  const solidTileIds = Array.from({ length: 72 }, (_, i) => i + 1); // all for now
-  setSolidTiles(solidTileIds);
-}
+  setCurrentMap(map);
 
-export function getCurrentMap() {
-  return currentMap;
+  const solidTileIds = Array.from({ length: 72 }, (_, i) => i + 1);
+  setSolidTiles(solidTileIds);
 }

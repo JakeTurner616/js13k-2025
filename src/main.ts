@@ -1,7 +1,9 @@
 // src/main.ts
 
 import { createAnimator } from "./atlas/animationAtlas";
-import { loadLevel1, getCurrentMap } from "./engine/level-loader.ts";
+import { loadLevel1 } from "./engine/level-loader.ts";
+import { getCurrentMap } from "./engine/MapContext.ts";
+
 import { drawTile, isTileAtlasReady } from "./tileset/tilemap.ts";
 import { setupInput, getInputState } from "./engine/input.ts";
 import { Player } from "./player/Player.ts";

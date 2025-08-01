@@ -1,6 +1,6 @@
 // src/player/Physics.ts
 
-import { getCurrentMap } from "../engine/level-loader";
+import { getCurrentMap } from "../engine/MapContext.ts";
 
 export type Vec2 = { x: number; y: number };
 
@@ -16,7 +16,6 @@ export interface PhysicsBody {
 const GRAVITY = 0.14;
 const TILE_SIZE = 32;
 
-// Solid tile tracking
 const collidableTiles = new Set<number>();
 
 export function setSolidTiles(solidIds: number[]) {
@@ -37,17 +36,14 @@ export function applyPhysics(body: PhysicsBody, ctx: CanvasRenderingContext2D) {
     body.vel.y += body.acc.y;
   }
 
-  // X movement
   body.pos.x += body.vel.x;
   if (checkCollision(body, ctx)) {
     body.pos.x -= body.vel.x;
     body.vel.x = 0;
   }
 
-  // Y movement
   body.pos.y += body.vel.y;
   if (checkCollision(body, ctx)) {
-    // Only set grounded if falling
     if (body.vel.y > 0) {
       body.grounded = true;
     } else {
@@ -86,7 +82,6 @@ function checkCollision(body: PhysicsBody, ctx: CanvasRenderingContext2D): boole
   return false;
 }
 
-// Debug visual: call in main.ts after map render
 export function drawTileColliders(ctx: CanvasRenderingContext2D) {
   const map = getCurrentMap();
   if (!map) return;
