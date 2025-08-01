@@ -2,6 +2,7 @@
 
 import typescript from "@rollup/plugin-typescript";
 import { terser } from "rollup-plugin-terser";
+import { visualizer } from "rollup-plugin-visualizer"; // <-- ADDED
 import fs from "fs";
 import path from "path";
 
@@ -84,7 +85,13 @@ export default {
         ascii_only: true
       }
     }),
-    copyPublicFolder(), // <-- NEW plugin added
+    visualizer({
+      filename: "dist/stats.html",
+      title: "Bundle Visualizer",
+      sourcemap: false,
+      template: "treemap" // You can also try "sunburst" or "network"
+    }),
+    copyPublicFolder(),
     inlineIntoHTML({
       jsFile: "dist/tmp.js",
       htmlTemplate: "src/template.html",
