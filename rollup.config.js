@@ -2,7 +2,8 @@
 
 import typescript from "@rollup/plugin-typescript";
 import { terser } from "rollup-plugin-terser";
-import { visualizer } from "rollup-plugin-visualizer"; // <-- ADDED
+import { visualizer } from "rollup-plugin-visualizer";
+import glsl from "rollup-plugin-glsl"; // <-- ADDED
 import fs from "fs";
 import path from "path";
 
@@ -57,15 +58,22 @@ export default {
     format: "iife"
   },
   plugins: [
+    // 🔧 Shader compression
+    glsl({
+      include: ["**/*.glsl"], // Only .glsl files
+      compress: true          // Minify GLSL code
+    }),
+
     typescript({
       target: "ESNext",
       module: "ESNext",
       noEmitHelpers: true,
       importHelpers: false
     }),
+
     terser({
       compress: {
-        passes: 3,
+        passes: 22,
         unsafe: true,
         unsafe_math: true,
         unsafe_comps: true,
@@ -85,13 +93,16 @@ export default {
         ascii_only: true
       }
     }),
+
     visualizer({
       filename: "dist/stats.html",
       title: "Bundle Visualizer",
       sourcemap: false,
-      template: "treemap" // You can also try "sunburst" or "network"
+      template: "treemap"
     }),
+
     copyPublicFolder(),
+
     inlineIntoHTML({
       jsFile: "dist/tmp.js",
       htmlTemplate: "src/template.html",
