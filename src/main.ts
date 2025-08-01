@@ -80,7 +80,7 @@ function loop(time: number) {
         const tileKey = `Tile_${String(tile).padStart(2, "0")}`;
         const drawX = col * TILE_SIZE - camera.x;
         const drawY = WORLD_HEIGHT - totalMapHeight + row * TILE_SIZE - camera.y;
-        drawTile(ctx, tileKey, drawX, drawY);
+        drawTile(ctx, tileKey as any, drawX, drawY);
       }
     }
 
