@@ -1,52 +1,40 @@
-export class ShaderLayer {
-  gl: WebGLRenderingContext;
-  p: WebGLProgram;
-  b: WebGLBuffer;
-  t: WebGLTexture;
-  c: HTMLCanvasElement;
+export function createShaderLayer(g: WebGLRenderingContext, c: HTMLCanvasElement, f: string) {
+  const B = 34962, S = 3553;
+  const sh = (type: number, src: string): WebGLShader => {
+    const s = g.createShader(type)!;
+    g.shaderSource(s, src);
+    g.compileShader(s);
+    return s;
+  };
+  const p = g.createProgram()!;
+  g.attachShader(p, sh(35633, "attribute vec2 p;void main(){gl_Position=vec4(p,0.,1.);}"));
+  g.attachShader(p, sh(35632, f));
+  g.linkProgram(p);
 
-  constructor(c: HTMLCanvasElement, f: string) {
-    const g = c.getContext("webgl")!;
-    this.c = c;
-    this.gl = g;
-    this.b = g.createBuffer()!;
-    this.t = g.createTexture()!;
-    const v = "attribute vec2 p;void main(){gl_Position=vec4(p,0.,1.);}";
-    const vs = g.createShader(g.VERTEX_SHADER)!;
-    const fs = g.createShader(g.FRAGMENT_SHADER)!;
-    g.shaderSource(vs, v);
-    g.shaderSource(fs, f);
-    g.compileShader(vs);
-    g.compileShader(fs);
-    const p = g.createProgram()!;
-    g.attachShader(p, vs);
-    g.attachShader(p, fs);
-    g.linkProgram(p);
-    this.p = p;
-    g.bindBuffer(g.ARRAY_BUFFER, this.b);
-    g.bufferData(g.ARRAY_BUFFER, new Float32Array([-1, -1, 3, -1, -1, 3]), g.STATIC_DRAW);
-    g.bindTexture(g.TEXTURE_2D, this.t);
-    g.texParameteri(g.TEXTURE_2D, g.TEXTURE_WRAP_S, g.CLAMP_TO_EDGE);
-    g.texParameteri(g.TEXTURE_2D, g.TEXTURE_WRAP_T, g.CLAMP_TO_EDGE);
-    g.texParameteri(g.TEXTURE_2D, g.TEXTURE_MIN_FILTER, g.NEAREST);
-    g.texParameteri(g.TEXTURE_2D, g.TEXTURE_MAG_FILTER, g.NEAREST);
-  }
+  const b = g.createBuffer()!;
+  g.bindBuffer(B, b);
+  g.bufferData(B, new Float32Array([-1, -1, 3, -1, -1, 3]), 35044);
 
-  drawMasked(t: number, m: HTMLCanvasElement, b: [number, number, number, number]) {
-    const g = this.gl, p = this.p, [x, y, w, h] = b, fy = this.c.height - (y + h);
+  const t = g.createTexture()!;
+  g.bindTexture(S, t);
+  for (let i = 10242; i <= 10243; i++) g.texParameteri(S, i, 33071);
+  for (let i = 10240; i <= 10241; i++) g.texParameteri(S, i, 9728);
+
+  return (T: number, m: HTMLCanvasElement, r: [number, number, number, number]) => {
+    const x = r[0], y = r[1], w = r[2], h = r[3], fy = c.height - y - h;
     g.viewport(x, fy, w, h);
     g.useProgram(p);
     const a = g.getAttribLocation(p, "p");
     g.enableVertexAttribArray(a);
-    g.bindBuffer(g.ARRAY_BUFFER, this.b);
-    g.vertexAttribPointer(a, 2, g.FLOAT, false, 0, 0);
-    g.activeTexture(g.TEXTURE0);
-    g.bindTexture(g.TEXTURE_2D, this.t);
-    g.texImage2D(g.TEXTURE_2D, 0, g.RGBA, g.RGBA, g.UNSIGNED_BYTE, m);
+    g.bindBuffer(B, b);
+    g.vertexAttribPointer(a, 2, 5126, false, 0, 0);
+    g.activeTexture(33984);
+    g.bindTexture(S, t);
+    g.texImage2D(S, 0, 6408, 6408, 5121, m);
     g.uniform1i(g.getUniformLocation(p, "sprite"), 0);
-    g.uniform1f(g.getUniformLocation(p, "t"), t);
-    g.uniform2f(g.getUniformLocation(p, "r"), this.c.width, this.c.height);
+    g.uniform1f(g.getUniformLocation(p, "t"), T);
+    g.uniform2f(g.getUniformLocation(p, "r"), c.width, c.height);
     g.uniform2f(g.getUniformLocation(p, "u_offset"), x, fy);
-    g.drawArrays(g.TRIANGLES, 0, 3);
-  }
+    g.drawArrays(4, 0, 3);
+  };
 }

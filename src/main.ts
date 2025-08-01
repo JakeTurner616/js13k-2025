@@ -3,7 +3,7 @@ import { createAnimator } from "./atlas/animationAtlas";
 import { loadLevel1, getCurrentMap } from "./engine/renderer/level-loader";
 import { setupInput, getInputState } from "./engine/input/input";
 import { drawMapAndColliders } from "./engine/renderer/render";
-import { ShaderLayer } from "./engine/shaders/ShaderLayer";
+import { createShaderLayer } from "./engine/shaders/ShaderLayer";
 import { Player } from "./player/Player";
 import { demoFrag } from "./shaders/demoPulse.glsl";
 
@@ -15,7 +15,7 @@ const TILE_SIZE = 32;
 const { ctx, glCanvas, mask, maskCtx } = setupCanvasPair(WORLD.w, WORLD.h);
 setupInput();
 
-let shader: ShaderLayer;
+let drawMasked: (t: number, m: HTMLCanvasElement, r: [number, number, number, number]) => void;
 let player: Player;
 let animator: any;
 
@@ -24,7 +24,7 @@ createAnimator((a) => {
   animator = a;
   player = new Player(animator);
   loadLevel1();
-  shader = new ShaderLayer(glCanvas, demoFrag);
+  drawMasked = createShaderLayer(glCanvas.getContext("webgl")!, glCanvas, demoFrag);
   requestAnimationFrame(loop);
 });
 
@@ -46,6 +46,6 @@ function loop(t: number) {
   player.update(getInputState(), ctx);
   player.draw(ctx, t);
 
-  shader.drawMasked(t / 1000, mask, [player.pos.x | 0, player.pos.y | 0, 48, 48]);
+  drawMasked(t / 1000, mask, [player.pos.x | 0, player.pos.y | 0, 48, 48]);
   requestAnimationFrame(loop);
 }
