@@ -1,23 +1,14 @@
-// AnimationController.ts
-import type { Player } from "./Player"; // Adjust the path if needed
-export type AnimationName = "idle" | "run" | "jump"; // Only these allowed
+// src/player/AnimationController.ts
 
-const VALID: Set<string> = new Set(["idle", "run", "jump"]);
+export type AnimationName = "idle" | "run" | "jump";
 
 export class AnimationController {
   private current: AnimationName = "idle";
-  private player: Player;
 
-  constructor(player: Player) {
-    this.player = player;
-  }
+  constructor() {}
 
-  set(state: AnimationName) {
-    if (!VALID.has(state)) return; // 💥 invalid input ignored
-    if (state === this.current) return;
-
-    this.current = state;
-    this.player.setAnimation(state); // optional if loop-safe
+  set(n: AnimationName) {
+    if (n !== this.current) this.current = n;
   }
 
   getCurrent(): AnimationName {

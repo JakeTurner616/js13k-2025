@@ -1,25 +1,10 @@
-import type { State, InputState } from "./types";
+import type { State } from "./types";
 
 export const Run: State = {
-  enter(player) {
-    player.setAnimation("run");
-  },
-
-  update(player, input: InputState) {
-    const speed = player.moveSpeed;
-
-    if (input.left) {
-      player.vel.x = -speed;
-    } else if (input.right) {
-      player.vel.x = speed;
-    } else {
-      player.vel.x = 0;
-      player.setState("idle");
-    }
-
-    if (input.jump) {
-      player.vel.y = -player.jumpSpeed;
-      player.setState("jump");
-    }
+  enter(p) { p.setAnimation("run"); },
+  update(p, i) {
+    const s = p.moveSpeed;
+    p.vel.x = i.left ? -s : i.right ? s : (p.setState("idle"), 0);
+    if (i.jump) p.vel.y = -p.jumpSpeed, p.setState("jump");
   }
 };
