@@ -1,7 +1,7 @@
 // A customized, slightly de-minified version of ZzFXMicro v1.3.1
 // This function procedurally synthesizes sound effects using Web Audio API — no assets required.
 // This version is hand-tweaked for typescript.
-let zzfxV=0.3,zzfxX=new AudioContext();
+let zzfxV=0.3, zzfxR=44100, zzfxX=new AudioContext();
 export function zzfx(p=1,k=0.05,b=220,e=0,r=0,t=0.1,q=0,D=1,u=0,y=0,v=0,z=0,l=0,E=0,A=0,F=0,c=0,w=1,m=0,B=0,N=0){
   let M=Math,d=2*M.PI,R=44100,G=(u*=500*d/R/R),C=(b*=(1-k+2*k*M.random())*d/R),g=0,H=0,a=0,n=1,I=0,J=0,f=0,h=N<0?-1:1,x=d*h*N*2/R,L=M.cos(x),Z=M.sin,K=Z(x)/4,O=1+K,X=-2*L/O,Y=(1-K)/O,P=(1+h*L)/2/O,Q=-(h+L)/O,S=P,T=0,U=0,V=0,W=0;
   e=R*e+9,m*=R,r*=R,t*=R,c*=R,y*=500*d/R**3,A*=d/R,v*=d/R,z*=R*z,l=R*l|0,p*=zzfxV;
@@ -13,7 +13,77 @@ export function zzfx(p=1,k=0.05,b=220,e=0,r=0,t=0.1,q=0,D=1,u=0,y=0,v=0,z=0,l=0,
     N&&(f=W=S*T+Q*(T=U)+P*(U=f)-Y*V-X*(V=W))),
     x=(b+=u+=y)*M.cos(A*H++),g+=x+x*E*Z(a**5),
     n&&++n>z&&(b+=v,C+=v,n=0),!l||++I%l||(b=C,u=G,n=n||1);
+  // Play sound
   const dB=zzfxX.createBuffer(1,h,R),s=zzfxX.createBufferSource();
   dB.getChannelData(0).set(kArr);
   s.buffer=dB,s.connect(zzfxX.destination),s.start();
+  // Return samples for use in zzfxM
+  return kArr;
 }
+
+export function zzfxM(
+  instruments: number[][],
+  patterns: number[][][],
+  sequence: number[],
+  bpm = 125
+): [Float32Array, Float32Array] {
+  const beatLength = (zzfxR / bpm * 60) >> 2;
+  const left: number[] = [], right: number[] = [];
+  const cache: Record<string, number[]> = {};
+  let hasMore = true, ch = 0;
+
+  while (hasMore) {
+    hasMore = false;
+    let pos = 0;
+
+    for (let si = 0; si < sequence.length; si++) {
+      const pat = patterns[sequence[si]];
+      const row = pat[ch] || [0, 0];
+      hasMore ||= !!pat[ch];
+      const pan = row[1] || 0;
+      const inst = row[0] || 0;
+
+      for (let i = 2; i < row.length; i++) {
+        const note = row[i] || 0;
+        const key = `${inst}|${note}`;
+        let samples = cache[key];
+
+        if (!samples && note > 0) {
+          const instCopy = instruments[inst].slice();
+          instCopy[2] *= 2 ** ((note - 12) / 12); // Pitch adjust
+          samples = cache[key] = zzfx(...instCopy);
+        }
+
+        for (let j = 0; j < beatLength; j++, pos++) {
+          const s = (samples?.[j] || 0) / 2;
+          left[pos] = (left[pos] || 0) + s * (1 - pan);
+          right[pos] = (right[pos] || 0) + s * (1 + pan);
+        }
+      }
+    }
+
+    ch++;
+  }
+
+  return [new Float32Array(left), new Float32Array(right)];
+}
+
+export function playZzfxMSong(
+  left: Float32Array,
+  right: Float32Array,
+  loop = true
+) {
+  const len = left.length;
+  const buf = zzfxX.createBuffer(2, len, zzfxR);
+  buf.getChannelData(0).set(left);
+  buf.getChannelData(1).set(right);
+
+  const src = zzfxX.createBufferSource();
+  src.buffer = buf;
+  src.loop = loop;
+  src.connect(zzfxX.destination);
+  src.start();
+
+  return src; // ⬅️ useful if you want to stop it later
+}
+
