@@ -43,12 +43,12 @@ export class Player {
     applyPhysics(this.body, ctx);
   }
 
-  draw(ctx: CanvasRenderingContext2D, t: number) {
-    const a = this.anim.getCurrent();
-    const m = this.atlas.getMeta(a);
-    const i = Math.floor((t / 1000) * (m?.fps ?? 6)) % (m?.frameCount ?? 1);
-    this.atlas.drawFrame(ctx, a, i, this.body.pos.x, this.body.pos.y);
-  }
+draw(ctx: CanvasRenderingContext2D, t: number, frameOverride?: number) {
+  const a = this.anim.getCurrent();
+  const m = this.atlas.getMeta(a);
+  const i = frameOverride ?? Math.floor((t / 1000) * (m?.fps ?? 6)) % (m?.frameCount ?? 1);
+  this.atlas.drawFrame(ctx, a, i, this.body.pos.x, this.body.pos.y);
+}
 
   get pos() { return this.body.pos; }
   set pos(p) { this.body.pos = p; }
