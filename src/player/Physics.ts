@@ -36,7 +36,14 @@ const collides = (b: PhysicsBody, ctx: CanvasRenderingContext2D, m: any) => {
   return false;
 };
 
+let showTileColliders = false; // Debug flag, keep disabled for prod
+
+export const setShowTileColliders = (show: boolean) => {
+  showTileColliders = show;
+};
+
 export const drawTileColliders = (ctx: CanvasRenderingContext2D) => {
+  if (!showTileColliders) return;
   const m = getCurrentMap();
   if (!m) return;
   const y0 = ctx.canvas.height - m.height * S;

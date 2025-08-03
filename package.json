@@ -11,6 +11,8 @@
     "preview": "vite preview"
   },
   "devDependencies": {
+    "@rollup/plugin-commonjs": "^28.0.6",
+    "@rollup/plugin-node-resolve": "^16.0.1",
     "@rollup/plugin-typescript": "^12.1.4",
     "@types/pako": "^2.0.3",
     "cross-zip-cli": "^1.0.0",
@@ -24,7 +26,6 @@
     "vite": "^7.0.4"
   },
   "dependencies": {
-    "@rollup/plugin-node-resolve": "^16.0.1",
     "fflate": "^0.8.2",
     "tiny-inflate": "^1.0.3"
   }
