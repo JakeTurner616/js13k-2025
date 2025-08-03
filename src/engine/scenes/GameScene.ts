@@ -44,6 +44,13 @@ export const GameScene = {
       return;
     }
 
+    // ✅ Resize shared mask canvas for GameScene (e.g. 48x48)
+    if (this.__mask) {
+      this.__mask.width = 48;
+      this.__mask.height = 48;
+    }
+
+    // ✅ Reinitialize shader with new viewport bounds
     drawMasked = createShaderLayer(gl, this.__glCanvas!, demoFrag);
     loadLevel1();
   },

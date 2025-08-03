@@ -1,4 +1,6 @@
-export function setupCanvasPair(w: number, h: number) {
+// src/engine/renderer/initCanvas.ts
+
+export function setupCanvasPair(w: number, h: number, maskW = 48, maskH = 48) {
   const c = document.createElement("canvas"),
         g = document.createElement("canvas"),
         m = document.createElement("canvas"),
@@ -12,7 +14,10 @@ export function setupCanvasPair(w: number, h: number) {
   });
 
   Object.assign(g.style, { zIndex: "1", pointerEvents: "none" });
-  Object.assign(m, { width: 48, height: 48 });
+
+  // ✅ Mask canvas is now configurable
+  m.width = maskW;
+  m.height = maskH;
 
   const resize = () => {
     const s = Math.floor(Math.min(innerWidth / w, innerHeight / h)),
