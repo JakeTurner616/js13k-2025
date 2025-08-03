@@ -4,7 +4,7 @@ import { drawText } from "../font/fontEngine";
 import { createShaderLayer } from "../shaders/ShaderLayer";
 import { stylishText } from "../../shaders/stylishText.glsl";
 
-let drawMasked: (t: number, m: HTMLCanvasElement, r: [number, number, number, number]) => void;
+let drawMasked: ReturnType<typeof createShaderLayer>;
 
 export const MenuScene = {
   __ctx: null as CanvasRenderingContext2D | null,
@@ -13,12 +13,7 @@ export const MenuScene = {
   __mask: null as HTMLCanvasElement | null,
   onClick: undefined as undefined | (() => void),
 
-  setCanvas(
-    ctx: CanvasRenderingContext2D,
-    glCanvas: HTMLCanvasElement,
-    maskCtx: CanvasRenderingContext2D,
-    mask: HTMLCanvasElement
-  ) {
+  setCanvas(ctx: CanvasRenderingContext2D, glCanvas: HTMLCanvasElement, maskCtx: CanvasRenderingContext2D, mask: HTMLCanvasElement) {
     this.__ctx = ctx;
     this.__glCanvas = glCanvas;
     this.__maskCtx = maskCtx;
@@ -31,15 +26,14 @@ export const MenuScene = {
       console.error("WebGL context not available");
       return;
     }
+
     drawMasked = createShaderLayer(gl, this.__glCanvas!, stylishText);
 
     const handleClick = () => this.onClick?.();
     addEventListener("click", handleClick, { once: true });
   },
 
-  update(_t: number) {
-    // No input or physics yet for menu
-  },
+  update(_t: number) {},
 
   draw(t: number) {
     if (!this.__ctx || !this.__mask || !this.__maskCtx || !drawMasked) return;
@@ -56,10 +50,7 @@ export const MenuScene = {
     const x = 60;
     const y = 100;
 
-    // Draw to mask
     drawText(maskCtx, text, x, y, scale, "#fff");
-
-    // Draw shader-masked region (full screen, now that mask is full size)
-    drawMasked(t / 1000, mask, [0, 0, ctx.canvas.width, ctx.canvas.height]);
+    drawMasked.render(t / 1000, mask, [0, 0, ctx.canvas.width, ctx.canvas.height]);
   }
 };

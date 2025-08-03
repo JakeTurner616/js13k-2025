@@ -7,9 +7,15 @@ import { createShaderLayer } from "../shaders/ShaderLayer";
 import { drawText } from "../font/fontEngine";
 import { Player } from "../../player/Player";
 import { demoFrag } from "../../shaders/demoPulse.glsl";
+import { redPulse } from "../../shaders/redPulse.glsl";
 import type { AtlasAnimator } from "../../animation/AtlasAnimator";
 
-let drawMasked: (t: number, m: HTMLCanvasElement, r: [number, number, number, number]) => void;
+let drawMasked: ReturnType<typeof createShaderLayer>;
+let drawGlow: ReturnType<typeof createShaderLayer>;
+
+let glowMask: HTMLCanvasElement;
+let glowCtx: CanvasRenderingContext2D;
+
 let player: Player;
 let animator: AtlasAnimator;
 let lastJump = false;
@@ -44,14 +50,20 @@ export const GameScene = {
       return;
     }
 
-    // ✅ Resize shared mask canvas for GameScene (e.g. 48x48)
     if (this.__mask) {
       this.__mask.width = 48;
       this.__mask.height = 48;
     }
 
-    // ✅ Reinitialize shader with new viewport bounds
+    glowMask = document.createElement("canvas");
+    glowMask.width = 480;
+    glowMask.height = 270;
+    glowCtx = glowMask.getContext("2d")!;
+
     drawMasked = createShaderLayer(gl, this.__glCanvas!, demoFrag);
+    drawGlow = createShaderLayer(gl, this.__glCanvas!, redPulse);
+
+
     loadLevel1();
   },
 
@@ -61,16 +73,15 @@ export const GameScene = {
     const input = getInputState();
     const nowJump = input.jump;
     if (nowJump && !lastJump) {
-      // placeholder for jump sound
+      // Jump trigger
     }
     lastJump = nowJump;
-
     player.update(input, this.__ctx);
   },
 
   draw(t: number) {
     const map = getCurrentMap();
-    if (!map || !this.__ctx || !this.__mask || !this.__maskCtx || !player || !animator || !drawMasked) return;
+    if (!map || !this.__ctx || !this.__mask || !this.__maskCtx || !player || !animator || !drawMasked || !drawGlow) return;
 
     const ctx = this.__ctx;
     const mask = this.__mask;
@@ -85,10 +96,13 @@ export const GameScene = {
     if (!meta) return;
 
     const frame = Math.floor((t / 1000) * meta.fps) % meta.frameCount;
-
     animator.drawFrame(maskCtx, anim, frame, 0, 0);
     player.draw(ctx, t, frame);
-    drawMasked(t / 1000, mask, [player.pos.x | 0, player.pos.y | 0, 48, 48]);
-    drawText(ctx, "HELLO WORLD", 16, 16, 3, "#0ff");
+
+    drawMasked.render(t / 1000, mask, [player.pos.x | 0, player.pos.y | 0, 48, 48]);
+
+    glowCtx.clearRect(0, 0, glowMask.width, glowMask.height);
+    drawText(glowCtx, "HELLO WORLD", 16, 16, 3, "#fff");
+    drawGlow.render(t / 1000, glowMask, [0, 0, 480, 270]);
   }
 };
