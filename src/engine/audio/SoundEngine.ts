@@ -20,70 +20,42 @@ export function zzfx(p=1,k=0.05,b=220,e=0,r=0,t=0.1,q=0,D=1,u=0,y=0,v=0,z=0,l=0,
   // Return samples for use in zzfxM
   return kArr;
 }
-
-export function zzfxM(
-  instruments: number[][],
-  patterns: number[][][],
-  sequence: number[],
-  bpm = 125
-): [Float32Array, Float32Array] {
-  const beatLength = (zzfxR / bpm * 60) >> 2;
-  const left: number[] = [], right: number[] = [];
-  const cache: Record<string, number[]> = {};
-  let hasMore = true, ch = 0;
-
-  while (hasMore) {
-    hasMore = false;
-    let pos = 0;
-
-    for (let si = 0; si < sequence.length; si++) {
-      const pat = patterns[sequence[si]];
-      const row = pat[ch] || [0, 0];
-      hasMore ||= !!pat[ch];
-      const pan = row[1] || 0;
-      const inst = row[0] || 0;
-
-      for (let i = 2; i < row.length; i++) {
-        const note = row[i] || 0;
-        const key = `${inst}|${note}`;
-        let samples = cache[key];
-
-        if (!samples && note > 0) {
-          const instCopy = instruments[inst].slice();
-          instCopy[2] *= 2 ** ((note - 12) / 12); // Pitch adjust
-          samples = cache[key] = zzfx(...instCopy);
+export function zzfxM(i: number[][], p: number[][][], s: number[], b = 125): [Float32Array, Float32Array] {
+  const r = zzfxR, l: number[] = [], R: number[] = [], c: Record<string, number[]> = {}, n = (r * 60 / b) >> 2;
+  for (let ch = 0, h = 1; h;) {
+    h = 0;
+    let x = 0;
+    for (let si = 0; si < s.length; si++) {
+      const t = p[s[si]], row = t[ch], [ins = 0, pan = 0] = row || [];
+      h |= Number(!!row);
+      for (let k = 2; k < (row?.length || 0); k++) {
+        const note = row[k] || 0, key = ins + "|" + note;
+        let v = c[key];
+        if (!v && note) {
+          const d = i[ins].slice();
+          d[2] *= 2 ** ((note - 12) / 12);
+          c[key] = v = zzfx(...d);
         }
-
-        for (let j = 0; j < beatLength; j++, pos++) {
-          const s = (samples?.[j] || 0) / 2;
-          left[pos] = (left[pos] || 0) + s * (1 - pan);
-          right[pos] = (right[pos] || 0) + s * (1 + pan);
+        for (let j = 0; j < n; j++, x++) {
+          const s = (v?.[j] || 0) / 2;
+          l[x] = (l[x] || 0) + s * (1 - pan);
+          R[x] = (R[x] || 0) + s * (1 + pan);
         }
       }
     }
-
     ch++;
   }
-
-  return [new Float32Array(left), new Float32Array(right)];
+  return [new Float32Array(l), new Float32Array(R)];
 }
 
-export function playZzfxMSong(
-  left: Float32Array,
-  right: Float32Array,
-  loop = true
-) {
-  const len = left.length;
-  const buf = zzfxX.createBuffer(2, len, zzfxR);
-  buf.getChannelData(0).set(left);
-  buf.getChannelData(1).set(right);
-
-  const src = zzfxX.createBufferSource();
-  src.buffer = buf;
-  src.loop = loop;
-  src.connect(zzfxX.destination);
-  src.start();
-
-  return src; // ⬅️ useful if you want to stop it later
+export function playZzfxMSong(l: Float32Array, r: Float32Array, loop = true) {
+    const b = zzfxX.createBuffer(2, l.length, zzfxR);
+    b.getChannelData(0).set(l);
+    b.getChannelData(1).set(r);
+    const s = zzfxX.createBufferSource();
+    s.buffer = b;
+    s.loop = loop;
+    s.connect(zzfxX.destination);
+    s.start();
+    return s;
 }
-
