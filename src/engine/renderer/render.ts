@@ -1,7 +1,7 @@
 // src/engine/render.ts
 
 import { drawTile } from "../../tileset/tilemap";
-import { drawTileColliders } from "../../player/Physics";
+
 
 /**
  * Renders the current tilemap to the canvas, along with debug colliders.
@@ -37,6 +37,5 @@ export function drawMapAndColliders(
     }
   }
 
-  // Optionally overlay debug collider shapes (for development only)
-  drawTileColliders(ctx);
+
 }
