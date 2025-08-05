@@ -3,28 +3,9 @@
 import typescript from "@rollup/plugin-typescript";
 import { terser } from "rollup-plugin-terser";
 import { visualizer } from "rollup-plugin-visualizer";
-import glsl from "rollup-plugin-glsl"; // <-- ADDED
+import glsl from "rollup-plugin-glsl";
 import fs from "fs";
 import path from "path";
-
-/**
- * Custom plugin to inline minified JS directly into HTML using raw string for eval
- */
-function inlineIntoHTML({ jsFile, htmlTemplate, outputFile }) {
-  return {
-    name: "inline-into-html",
-    writeBundle() {
-      let js = fs.readFileSync(jsFile, "utf8");
-      // Escape single quotes and remove newlines for a safe and compact eval
-      js = js.replace(/\\/g, "\\\\").replace(/'/g, "\\'").replace(/\n/g, "");
-
-      const html = fs.readFileSync(htmlTemplate, "utf8");
-      const inlined = `<script>eval('${js}')</script>`;
-      fs.writeFileSync(outputFile, html.replace("</body>", `${inlined}</body>`));
-      fs.unlinkSync(jsFile);
-    }
-  };
-}
 
 /**
  * Plugin to copy static assets from public/ to dist/
@@ -35,13 +16,8 @@ function copyPublicFolder() {
     buildStart() {
       const srcDir = path.resolve("public");
       const destDir = path.resolve("dist");
-
       if (!fs.existsSync(srcDir)) return;
-
-      if (!fs.existsSync(destDir)) {
-        fs.mkdirSync(destDir, { recursive: true });
-      }
-
+      if (!fs.existsSync(destDir)) fs.mkdirSync(destDir, { recursive: true });
       for (const file of fs.readdirSync(srcDir)) {
         const srcFile = path.join(srcDir, file);
         const destFile = path.join(destDir, file);
@@ -54,14 +30,13 @@ function copyPublicFolder() {
 export default {
   input: "src/main.ts",
   output: {
-    file: "dist/tmp.js",
+    file: "dist/tmp.js", // output before Roadroller
     format: "iife"
   },
   plugins: [
-    // 🔧 Shader compression
     glsl({
-      include: ["**/*.glsl"], // Only .glsl files
-      compress: true          // Minify GLSL code
+      include: ["**/*.glsl"],
+      compress: true
     }),
 
     typescript({
@@ -101,12 +76,6 @@ export default {
       template: "treemap"
     }),
 
-    copyPublicFolder(),
-
-    inlineIntoHTML({
-      jsFile: "dist/tmp.js",
-      htmlTemplate: "src/template.html",
-      outputFile: "dist/index.html"
-    })
+    copyPublicFolder()
   ]
 };

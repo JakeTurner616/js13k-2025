@@ -5,7 +5,7 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
-    "build": "rollup -c",
+    "build": "rollup -c && node tools/compress.js && node tools/inline-html.js",
     "zip": "cross-zip dist js13k.zip",
     "encode": "node scripts/encode-png.js",
     "preview": "vite preview"
@@ -17,6 +17,7 @@
     "@types/pako": "^2.0.3",
     "cross-zip-cli": "^1.0.0",
     "pako": "^2.1.0",
+    "roadroller": "^2.1.0",
     "rollup-plugin-glsl": "^1.3.0",
     "rollup-plugin-html-inline": "^1.0.14",
     "rollup-plugin-terser": "^7.0.2",

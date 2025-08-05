@@ -1,5 +1,7 @@
 // src/engine/renderer/SharedAtlas.ts
 
+import { packedBase64, mapBase64 } from "../../assets/img/embedded";
+
 type Atlas = {
   img: HTMLImageElement;
   ready: boolean;
@@ -23,8 +25,8 @@ function makeAtlas(src: string): Atlas {
 }
 
 const atlases = {
-  anim: makeAtlas("./packed.png"),
-  tile: makeAtlas("./map.png")
+  anim: makeAtlas(packedBase64),
+  tile: makeAtlas(mapBase64)
 };
 
 export const getAtlasImage = (k: "anim" | "tile") => atlases[k].img;
