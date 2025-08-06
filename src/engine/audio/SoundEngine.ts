@@ -49,13 +49,8 @@ export function zzfxM(i: number[][], p: number[][][], s: number[], b = 125): [Fl
 }
 
 export function playZzfxMSong(l: Float32Array, r: Float32Array, loop = true) {
-    const b = zzfxX.createBuffer(2, l.length, zzfxR);
-    b.getChannelData(0).set(l);
-    b.getChannelData(1).set(r);
-    const s = zzfxX.createBufferSource();
-    s.buffer = b;
-    s.loop = loop;
-    s.connect(zzfxX.destination);
-    s.start();
-    return s;
+  const s = zzfxX.createBufferSource(), b = zzfxX.createBuffer(2, l.length, zzfxR);
+  b.getChannelData(0).set(l); b.getChannelData(1).set(r);
+  s.buffer = b; s.loop = loop; s.connect(zzfxX.destination); s.start();
+  return s;
 }

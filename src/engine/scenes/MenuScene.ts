@@ -1,25 +1,22 @@
-import { drawText } from "../font/fontEngine";
 import { createShaderLayer } from "../shaders/ShaderLayer";
-import { stylishText1 } from "../../shaders/effect1.glsl";
+import { setSolidTiles } from "../../player/Physics";
+import { FloatingTitle } from "../components/FloatingTitle";
+import { BouncingTitle } from "../components/BouncingTitle";
 import { stylishText2 } from "../../shaders/effect2.glsl";
-import {
-  applyPhysics,
-  setSolidTiles,
-  type PhysicsBody
-} from "../../player/Physics";
 
 const TILE_SIZE = 32;
 const TILE_COLS = 30;
-const bounceText = "HELLO WORLD";
-const titleText = "HELLO WORLD";
-const SHADERS = [stylishText1, stylishText2];
+const TEXT = "HELLO WORLD !";
 
-const bouncingChars: (PhysicsBody & { ch: string; delay: number })[] = [];
-const floatingChars: { ch: string; baseX: number; baseY: number; offset: number }[] = [];
+const SHADERS = [stylishText2];
+const USE_BOUNCE = false; // 🔁 toggle between bounce and float
 
 let bounceLayer: ReturnType<typeof createShaderLayer>;
 let floatLayer: ReturnType<typeof createShaderLayer>;
 let shadowLayer: ReturnType<typeof createShaderLayer>;
+
+let bouncing: BouncingTitle;
+let floating: FloatingTitle;
 
 export const MenuScene = {
   __ctx: null as CanvasRenderingContext2D | null,
@@ -37,12 +34,12 @@ export const MenuScene = {
 
   setCanvas(
     ctx: CanvasRenderingContext2D,
-    glCanvas: HTMLCanvasElement,
+    gl: HTMLCanvasElement,
     maskCtx: CanvasRenderingContext2D,
     mask: HTMLCanvasElement
   ) {
     this.__ctx = ctx;
-    this.__glCanvas = glCanvas;
+    this.__glCanvas = gl;
     this.__maskCtx = maskCtx;
     this.__mask = mask;
   },
@@ -50,8 +47,6 @@ export const MenuScene = {
   start() {
     const gl = this.__glCanvas?.getContext("webgl");
     if (!gl) return;
-
-    this.initShaderLayers(gl);
 
     const h = this.__ctx!.canvas.height;
     const rows = Math.ceil(h / TILE_SIZE);
@@ -62,31 +57,13 @@ export const MenuScene = {
     };
     setSolidTiles([1]);
 
-    // Bouncing text (right to left stagger)
-    const scale = 4;
-    for (let i = 0, n = bounceText.length; i < n; i++) {
-      bouncingChars.push({
-        pos: { x: 40 + i * 8 * scale, y: -999 },
-        vel: { x: 0, y: 0 },
-        width: 8 * scale,
-        height: 8 * scale,
-        grounded: false,
-        gravity: 0.2,
-        bounce: 0.5,
-        ch: bounceText[i],
-        delay: n - i - 1
-      });
+    if (USE_BOUNCE) {
+      bouncing = new BouncingTitle(TEXT);
+    } else {
+      floating = new FloatingTitle(TEXT);
     }
 
-    // Floating title
-    for (let i = 0; i < titleText.length; i++) {
-      floatingChars.push({
-        ch: titleText[i],
-        baseX: 80 + i * 32,
-        baseY: 30,
-        offset: i
-      });
-    }
+    this.initShaderLayers(gl);
 
     addEventListener("click", () => {
       this.shaderIndex = (this.shaderIndex + 1) % SHADERS.length;
@@ -104,50 +81,29 @@ export const MenuScene = {
 
   update(t: number) {
     if (!this.__ctx) return;
-    const tick = ((t / 1000) * 10) | 0;
-
-    for (let c of bouncingChars) {
-      if (tick >= c.delay && c.pos.y === -999) {
-        c.pos.y = 0;
-        c.vel.y = 0.1;
-      }
-      if (c.pos.y !== -999) {
-        applyPhysics(c, this.__ctx, this.__fakeMap, true);
-        c.vel.x = 0;
-      }
+    if (USE_BOUNCE) {
+      bouncing.update(t, this.__ctx, this.__fakeMap);
     }
   },
 
   draw(t: number) {
-    if (!this.__ctx || !this.__mask || !this.__maskCtx) return;
-    const ctx = this.__ctx;
-    const maskCtx = this.__maskCtx;
-    const mask = this.__mask;
+    const { __ctx: ctx, __maskCtx: maskCtx, __mask: mask } = this;
+    if (!ctx || !mask || !maskCtx) return;
+
     const time = t / 1000;
-
     ctx.clearRect(0, 0, ctx.canvas.width, ctx.canvas.height);
-    maskCtx.clearRect(0, 0, mask.width, mask.height);
 
-    // Bounce pass
-    for (let c of bouncingChars) {
-      if (c.pos.y !== -999) drawText(maskCtx, c.ch, c.pos.x | 0, c.pos.y | 0, 4, "#fff");
-    }
-    bounceLayer.render(time, mask, [0, 0, ctx.canvas.width, ctx.canvas.height]);
-
-    // Shadow pass
+    // Layer 1: Bounce or float shadow
     maskCtx.clearRect(0, 0, mask.width, mask.height);
-    for (let f of floatingChars) {
-      const y = f.baseY + Math.sin(time * 2 + f.offset) * 3;
-      drawText(maskCtx, f.ch, f.baseX + 1, y + 1, 4, "#fff");
+    if (USE_BOUNCE) {
+      bouncing.draw(maskCtx);
+      bounceLayer.render(time, mask, [0, 0, ctx.canvas.width, ctx.canvas.height]);
+    } else {
+      floating.drawShadow(maskCtx, t);
+      shadowLayer.render(time, mask, [0, 0, ctx.canvas.width, ctx.canvas.height]);
+      maskCtx.clearRect(0, 0, mask.width, mask.height);
+      floating.drawMain(maskCtx, t);
+      floatLayer.render(time, mask, [0, 0, ctx.canvas.width, ctx.canvas.height]);
     }
-    shadowLayer.render(time, mask, [0, 0, ctx.canvas.width, ctx.canvas.height]);
-
-    // Float pass
-    maskCtx.clearRect(0, 0, mask.width, mask.height);
-    for (let f of floatingChars) {
-      const y = f.baseY + Math.sin(time * 2 + f.offset) * 3;
-      drawText(maskCtx, f.ch, f.baseX, y, 4, "#fff");
-    }
-    floatLayer.render(time, mask, [0, 0, ctx.canvas.width, ctx.canvas.height]);
   }
 };

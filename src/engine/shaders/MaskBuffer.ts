@@ -1,14 +1,12 @@
 // src/engine/MaskBuffer.ts
 
 export class MaskBuffer {
-  c: HTMLCanvasElement;
-  x: CanvasRenderingContext2D;
+  c = document.createElement("canvas");
+  x = this.c.getContext("2d")!;
 
   constructor(w: number, h: number) {
-    this.c = document.createElement("canvas");
     this.c.width = w;
     this.c.height = h;
-    this.x = this.c.getContext("2d")!;
   }
 
   clear() {
