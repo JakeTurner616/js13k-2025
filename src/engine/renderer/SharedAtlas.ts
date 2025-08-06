@@ -1,27 +1,21 @@
 // src/engine/renderer/SharedAtlas.ts
-
 import { packedBase64, mapBase64 } from "../../assets/img/embedded";
 
-type Atlas = {
-  img: HTMLImageElement;
-  ready: boolean;
-  load: Promise<void>;
-};
-
-function makeAtlas(src: string): Atlas {
-  const img = new Image();
-  const atlas: Atlas = {
-    img,
-    ready: false,
-    load: new Promise<void>(res => {
-      img.onload = () => {
-        atlas.ready = true;
-        res();
-      };
-    })
+function makeAtlas(src: string) {
+  const image = new Image();
+  let ready = false;
+  const load = new Promise<void>(res => {
+    image.onload = () => {
+      ready = true;
+      res();
+    };
+  });
+  image.src = src;
+  return {
+    image,
+    get ready() { return ready },
+    load
   };
-  img.src = src;
-  return atlas;
 }
 
 const atlases = {
@@ -29,6 +23,6 @@ const atlases = {
   tile: makeAtlas(mapBase64)
 };
 
-export const getAtlasImage = (k: "anim" | "tile") => atlases[k].img;
-export const waitForAtlas = (k: "anim" | "tile") => atlases[k].load;
-export const isAtlasReady = (k: "anim" | "tile") => atlases[k].ready;
+export const getAtlasImage = (key: "anim" | "tile") => atlases[key].image;
+export const waitForAtlas = (key: "anim" | "tile") => atlases[key].load;
+export const isAtlasReady = (key: "anim" | "tile") => atlases[key].ready;

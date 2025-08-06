@@ -20,7 +20,14 @@ export class FloatingTitle {
     const time = t / 1000;
     for (let f of this.chars) {
       const y = f.baseY + Math.sin(time * 2 + f.offset) * 3;
-      drawText(ctx, f.ch, f.baseX + 1, y + 1, 4, "#fff");
+      drawText(
+        ctx,
+        f.ch,
+        (f.baseX + 2) | 0,   // X offset for shadow
+        (y + 2) | 0,         // Y offset for shadow
+        4,
+        "#111"               // Shadow color (dark)
+      );
     }
   }
 
@@ -28,7 +35,14 @@ export class FloatingTitle {
     const time = t / 1000;
     for (let f of this.chars) {
       const y = f.baseY + Math.sin(time * 2 + f.offset) * 3;
-      drawText(ctx, f.ch, f.baseX, y, 4, "#fff");
+      drawText(
+        ctx,
+        f.ch,
+        f.baseX | 0,
+        y | 0,
+        4,
+        "#fff"
+      );
     }
   }
 }

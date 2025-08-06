@@ -1,41 +1,29 @@
 // src/engine/render.ts
+import { tileAtlasMeta } from "../../atlas/tileAtlas";
+import { getAtlasImage, isAtlasReady } from "./SharedAtlas";
 
-import { drawTile } from "../../tileset/tilemap";
-
-
-/**
- * Renders the current tilemap to the canvas, along with debug colliders.
- * 
- * @param ctx - The destination 2D canvas context
- * @param map - A simple map object with { width, height, tiles[] }
- * @param tileSize - The size of each tile in pixels (e.g. 32)
- */
 export function drawMapAndColliders(
   ctx: CanvasRenderingContext2D,
-  map: any,
+  map: { width: number; height: number; tiles: number[] },
   tileSize: number
 ) {
-  // Total height of the tilemap in pixels
-  const totalHeight = map.height * tileSize;
+  if (!isAtlasReady("tile")) return;
 
-  // Iterate through each tile in row-major order
-  for (let y = 0; y < map.height; y++) {
-    for (let x = 0; x < map.width; x++) {
-      const i = y * map.width + x;
-      const tile = map.tiles[i];
-      if (!tile) continue; // Skip empty tiles (ID 0)
+  const img = getAtlasImage("tile");
+  const { width: w, height: h, tiles } = map;
+  const offsetY = ctx.canvas.height - h * tileSize;
 
-      // Convert tile coordinates to canvas-space
-      const drawX = x * tileSize;
-      const drawY = ctx.canvas.height - totalHeight + y * tileSize;
-
-      // Construct tile key name (e.g. "Tile_01", "Tile_12", etc.)
-      const tileKey = `Tile_${String(tile).padStart(2, "0")}` as any;
-
-      // Draw the tile to the screen
-      drawTile(ctx, tileKey, drawX, drawY);
+  for (let y = 0, i = 0; y < h; y++) {
+    for (let x = 0; x < w; x++, i++) {
+      const meta = (tileAtlasMeta as { [key: number]: { x: number; y: number; w: number; h: number } })[tiles[i]];
+      if (meta)
+        ctx.drawImage(
+          img,
+          meta.x, meta.y, meta.w, meta.h,
+          x * tileSize,
+          offsetY + y * tileSize,
+          meta.w, meta.h
+        );
     }
   }
-
-
 }
