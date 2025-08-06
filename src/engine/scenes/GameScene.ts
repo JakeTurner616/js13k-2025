@@ -8,6 +8,7 @@ import { drawText } from "../font/fontEngine";
 import { Player } from "../../player/Player";
 import { demoFrag } from "../../shaders/demoPulse.glsl";
 import { redPulse } from "../../shaders/redPulse.glsl";
+
 import type { AtlasAnimator } from "../../animation/AtlasAnimator";
 
 let drawMasked: ReturnType<typeof createShaderLayer>;
