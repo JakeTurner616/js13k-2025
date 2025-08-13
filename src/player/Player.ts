@@ -1,3 +1,4 @@
+// src/player/Player.ts
 import { Idle } from "./states/Idle";
 import { Run } from "./states/Run";
 import { Jump } from "./states/Jump";
@@ -11,8 +12,16 @@ export class Player {
   body: PhysicsBody = {
     pos: { x: 48, y: 48 },
     vel: { x: 0, y: 0 },
-    width: 32,             // ⬅ 32×32 now (tiles + frames)
+
+    // Visual sprite (32×32 animation frames)
+    width: 32,
     height: 32,
+
+    // ⬇️ Collision hitbox (margins that remove empty space):
+    // tweak as needed; this example leaves 8px left/right, 6px top,
+    // and keeps feet a bit lower for nice ground contact.
+    hit: { x: 8, y: 6, w: 16, h: 24 },
+
     grounded: false
   };
 
@@ -48,6 +57,11 @@ export class Player {
     const m = this.atlas.getMeta(a);
     const i = frameOverride ?? Math.floor((t / 1000) * (m?.fps ?? 6)) % (m?.frameCount ?? 1);
     this.atlas.drawFrame(ctx, a, i, this.body.pos.x, this.body.pos.y);
+
+    // // DEBUG: visualize hitbox margins (uncomment to see)
+    // const hb = this.body.hit!;
+    // ctx.strokeStyle = "rgba(255,0,0,0.7)";
+    // ctx.strokeRect(this.body.pos.x + hb.x, this.body.pos.y + hb.y, hb.w, hb.h);
   }
 
   get pos() { return this.body.pos; }
