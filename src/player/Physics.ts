@@ -1,3 +1,4 @@
+// src/player/Physics.ts
 import { getCurrentMap } from "../engine/renderer/MapContext";
 
 export type Vec2 = { x: number; y: number };
@@ -20,7 +21,8 @@ export interface TileMapLike {
 }
 
 const G = 0.14;
-const S = 32;
+const S = 16; // ⬅ tile size in pixels (match render)
+
 const solid = new Set<number>();
 
 export const setSolidTiles = (ids: number[]) => {
@@ -88,7 +90,7 @@ const collides = (
   for (let y = y0Tile; y <= y1Tile; y++) {
     for (let x = x0; x <= x1; x++) {
       if (x < 0 || y < 0 || x >= m.width || y >= m.height) continue;
-      if (solid.has(m.tiles[y * m.width + x])) return true;
+      if (solid.has((m.tiles as any)[y * m.width + x])) return true;
     }
   }
   return false;

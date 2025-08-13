@@ -9,9 +9,11 @@ import {
 
 import { setSolidTiles } from "../../player/Physics.ts";
 import { setCurrentMap, getCurrentMap } from "./MapContext.ts";
+import { tileAtlasMeta } from "../../atlas/tileAtlas"; // ⬅ use packed/used GIDs
 
 /**
  * Loads level 1 from compressed RLE base64 data and sets up the map context.
+ * Also marks as "solid" exactly the GIDs present in the packed tile atlas.
  */
 export function loadLevel1() {
   const tiles = decodeBase64RLEToUint32Array(LEVEL_1_BASE64);
@@ -23,8 +25,9 @@ export function loadLevel1() {
 
   setCurrentMap(map);
 
-  // You can fine-tune this list if you later add non-solid tiles
-  const solidTileIds = Array.from({ length: 72 }, (_, i) => i + 1);
+  // ✅ Mark only the actually-used/packed GIDs as solid
+  // (adjust later if you introduce decorative/non-solid tiles)
+  const solidTileIds = Object.keys(tileAtlasMeta).map(n => +n);
   setSolidTiles(solidTileIds);
 }
 

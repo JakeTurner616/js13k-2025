@@ -1,0 +1,61 @@
+{
+  "meta": {
+    "version": "0.6.7"
+  },
+  "savePath": "C:\\Users\\jaked\\Documents\\ts-es-small\\js13k-ts\\src\\assets\\packed\\animations",
+  "images": [
+    {
+      "name": "1_Alternative_Colour_Cat_Idle-Sheet.png",
+      "path": "C:/Users/jaked/Downloads/CatCharacterAnimations1.1/CatCharacterAnimations1.1/SpriteSheets/AlternativeColour/1_Alternative_Colour_Cat_Idle-Sheet.png",
+      "folder": ""
+    },
+    {
+      "name": "2_Alternative_Colour_Cat_Run-Sheet.png",
+      "path": "C:/Users/jaked/Downloads/CatCharacterAnimations1.1/CatCharacterAnimations1.1/SpriteSheets/AlternativeColour/2_Alternative_Colour_Cat_Run-Sheet.png",
+      "folder": ""
+    },
+    {
+      "name": "3_Alternative_Colour_Cat_Jump-Sheet.png",
+      "path": "C:/Users/jaked/Downloads/CatCharacterAnimations1.1/CatCharacterAnimations1.1/SpriteSheets/AlternativeColour/3_Alternative_Colour_Cat_Jump-Sheet.png",
+      "folder": ""
+    },
+    {
+      "name": "4_Alternative_Colour_Cat_Fall-Sheet.png",
+      "path": "C:/Users/jaked/Downloads/CatCharacterAnimations1.1/CatCharacterAnimations1.1/SpriteSheets/AlternativeColour/4_Alternative_Colour_Cat_Fall-Sheet.png",
+      "folder": ""
+    },
+    {
+      "name": "18_Alternative_Colour_Cat_Death-Sheet.png",
+      "path": "C:/Users/jaked/Downloads/CatCharacterAnimations1.1/CatCharacterAnimations1.1/SpriteSheets/AlternativeColour/18_Alternative_Colour_Cat_Death-Sheet.png",
+      "folder": ""
+    }
+  ],
+  "folders": [],
+  "packOptions": {
+    "textureName": "texture",
+    "textureFormat": "png",
+    "removeFileExtension": true,
+    "prependFolderName": true,
+    "base64Export": false,
+    "tinify": true,
+    "tinifyKey": "Z7M8RnLZLLDw4074lR7BjjdRtBWgLtq2",
+    "scale": 1,
+    "filter": "none",
+    "exporter": "JSON (hash)",
+    "fileName": "pack-result",
+    "savePath": "C:\\Users\\jaked\\Documents\\ts-es-small\\js13k-ts\\src\\assets\\packed\\animations",
+    "width": 2048,
+    "height": 2048,
+    "fixedSize": false,
+    "powerOfTwo": false,
+    "padding": 0,
+    "extrude": 0,
+    "allowRotation": true,
+    "allowTrim": true,
+    "trimMode": "trim",
+    "alphaThreshold": "0",
+    "detectIdentical": true,
+    "packer": "OptimalPacker",
+    "packerMethod": "Automatic"
+  }
+}

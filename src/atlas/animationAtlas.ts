@@ -1,35 +1,66 @@
-import { AtlasAnimator } from "../animation/AtlasAnimator";
-import {
-  getAtlasImage,
-  waitForAtlas
-} from "../engine/renderer/SharedAtlas";
+import { AtlasAnimator, type AtlasMeta, type AnimationConfig } from "../animation/AtlasAnimator";
+import { getAtlasImage, waitForAtlas } from "../engine/renderer/SharedAtlas";
 
-// TexturePacker "frame" data mapped directly
-export const atlasMeta = {
-  flip:   { x: 384, y: 48, w: 288, h: 48 },  // player flip spin 48x48-Sheet-Sheet.png
-  idle:   { x: 0,   y: 0,  w: 480, h: 48 },  // Player Idle 48x48.png
-  land:   { x: 480, y: 0,  w: 432, h: 48 },  // player land 48x48.png
-  climb:  { x: 960, y: 48, w: 240, h: 48 },  // player ledge climb 48x48.png
-  jump:   { x: 672, y: 48, w: 288, h: 48 },  // player new jump 48x48.png
-  roll:   { x: 912, y: 0,  w: 336, h: 48 },  // Player Roll 48x48.png
-  run:    { x: 0,   y: 48, w: 384, h: 48 }   // player run 48x48.png
+// Slim TS object version of your FTP data (only fields actually used)
+import ftp from "../assets/packed/animations/texture"; // now a .ts file, not .json
+
+/** Convert slim FTP TS data → internal meta */
+function buildMetaFromFTP(json: any): AtlasMeta {
+  const out: AtlasMeta = {};
+  const frames = json?.frames || {};
+  for (const key in frames) {
+    const f = frames[key];
+    const fr = f.frame, sss = f.sss, src = f.src;
+    out[key] = {
+      x: fr.x | 0, y: fr.y | 0, w: fr.w | 0, h: fr.h | 0,
+      srcW: src.w | 0, srcH: src.h | 0,
+      offX: sss.x | 0, offY: sss.y | 0
+    };
+  }
+  return out;
+}
+
+const ftpMeta = buildMetaFromFTP(ftp);
+
+// Map friendly names → exact FTP keys from your new JSON
+const nameMap: Record<string, string> = {
+  death: "18_Alternative_Colour_Cat_Death-Sheet",
+  run:   "2_Alternative_Colour_Cat_Run-Sheet",
+  idle:  "1_Alternative_Colour_Cat_Idle-Sheet",
+  fall:  "4_Alternative_Colour_Cat_Fall-Sheet",
+  jump:  "3_Alternative_Colour_Cat_Jump-Sheet",
 };
 
-// Each frame is 48x48; divide w by 48 to get frameCount
-export const animations = [
-  { name: "flip",  frameCount: 6,  fps: 6, dx: 0,   dy: 0 },
-  { name: "idle",  frameCount: 10, fps: 6, dx: 60,  dy: 0 },
-  { name: "land",  frameCount: 9,  fps: 6, dx: 120, dy: 0 },
-  { name: "climb", frameCount: 5,  fps: 6, dx: 180, dy: 0 },
-  { name: "jump",  frameCount: 6,  fps: 6, dx: 0,   dy: 60 },
-  { name: "roll",  frameCount: 7,  fps: 6, dx: 60,  dy: 60 },
-  { name: "run",   frameCount: 8,  fps: 6, dx: 120, dy: 60 }
-];
+// Re-key meta to friendly names
+const atlasMeta: AtlasMeta = {};
+for (const k in nameMap) {
+  const srcKey = nameMap[k];
+  const m = ftpMeta[srcKey];
+  if (m) atlasMeta[k] = m;
+}
+
+// Derive frameCount from sourceSize.w / 32
+const FW = 32, FH = 32;
+const mkAnim = (name: string, fps: number, dx: number, dy: number): AnimationConfig | null => {
+  const m = atlasMeta[name];
+  if (!m) return null;
+  const frames = Math.max(1, (m.srcW / FW) | 0);
+  return { name, frameCount: frames, fps, dx, dy };
+};
+
+// Animation layout (adjust dx/dy for your game’s placement)
+const animations = [
+  mkAnim("idle",  8,   0,   0),   // srcW=256 → 8 frames
+  mkAnim("run",  12,  48,   0),   // srcW=320 → 10 frames
+  mkAnim("jump", 10,  96,   0),   // srcW=128 → 4 frames
+  mkAnim("fall", 10, 144,   0),   // srcW=128 → 4 frames
+  mkAnim("death", 8, 192,   0),   // srcW=288 → 9 frames
+].filter(Boolean) as AnimationConfig[];
 
 export function createAnimator(callback: (animator: AtlasAnimator) => void) {
   waitForAtlas("anim").then(() => {
     const img = getAtlasImage("anim");
-    const animator = new AtlasAnimator(img, atlasMeta, 48, 48, animations);
+    const animator = new AtlasAnimator(img, atlasMeta, FW, FH, animations);
     callback(animator);
   });
 }

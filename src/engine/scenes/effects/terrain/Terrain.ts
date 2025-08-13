@@ -1,16 +1,27 @@
 // src/engine/scenes/effects/terrain/Terrain.ts
-// Tiny terrain system: ridge layers + spawnable fractal backdrop layers.
+// Consolidated tiny terrain system: ridge layers + spawnable fractal backdrop layers.
 
 export type Drawer = (ctx:CanvasRenderingContext2D,w:number,h:number,t:number,camX:number)=>void;
 
-const {sin,abs,pow,min,max}=Math;
+const {sin,abs,min,max}=Math;
 
+// Shared 1D ridge curve for silhouette bands
 function ridge(x:number,s:number){
   return (
     sin(x*0.018+s)*0.6 +
     sin(x*0.034+s*1.7)*0.3 +
     sin(x*0.058+s*2.3)*0.15
   )*.5+.5;
+}
+
+// Shared tiny 2-octave fbm (used by fractal backdrop; good look / tiny cost)
+function fbm(x:number,y:number,s:number){
+  let a=0,b=1;
+  for(let o=0;o<2;o++){
+    a+=b*(sin(x*.02+s)+sin(y*.02+s*1.3)+sin((x+y)*.015+s*2.1))/3;
+    b*=.5; x*=1.8; y*=1.8;
+  }
+  return a*.5+.5;
 }
 
 function createMountainLayer(
@@ -39,6 +50,7 @@ function createMountainLayer(
 }
 
 // === Spawnable fractal backdrop layer (static; hyper-real mountains) ===
+// Simplified & Terser-friendly: light domain warp + ridged fbm with r^3 sharpen.
 export function createFractalBackdropLayer(
   seed:number,
   parallax:number,
@@ -47,48 +59,29 @@ export function createFractalBackdropLayer(
   color:string,  // flat fill color (use gradient externally if desired)
   step=4         // pixel grid step (4 matches cloud look; lower = crisper)
 ):Drawer{
-  // 2-octave fbm (good look / tiny cost)
-  const fbm=(x:number,y:number,s:number)=>{
-    let a=0,b=1;
-    for(let o=0;o<2;o++){
-      a+=b*(sin(x*.02+s)+sin(y*.02+s*1.3)+sin((x+y)*.015+s*2.1))/3;
-      b*=.5; x*=1.8; y*=1.8;
-    }
-    return a*.5+.5;
-  };
-
   return (c,w,h,_t,camX)=>{
-    const off=camX*parallax, s=seed, y0=h*base|0, sc=.9, half=h*.5|0;
-    // peak controls (kept as const so Roadroller can cross-reference)
-    const P=3, D=4; // P: peak sharpness, D: gradient sample step (world units)
+    const y0=(h*base)|0, off=camX*parallax, S=seed*.7, sc=.9, half=h>>1;
     c.fillStyle=color;
-    const a0=c.globalAlpha; c.globalAlpha=1;
 
-    for(let px=0;px<w;px+=step){
+    for(let px=0; px<w; px+=step){
       const wx=(px+off)*sc;
-      for(let py=0;py<half;py+=step){
+      for(let py=0; py<half; py+=step){
         const wy=py*sc;
 
         // domain warp
-        const wxw=wx + fbm(wx*.5,      wy*.5,      s)*60;
-        const wyw=wy + fbm(wx*.5+100,  wy*.5+100,  s)*40;
+        const x=wx + fbm(wx*.5,     wy*.5,     seed)*60;
+        const y=wy + fbm(wx*.5+100, wy*.5+100, seed)*40;
 
-        const n = fbm(wxw,wyw,s*.7);
+        // ridged transform with cheap peak sharpening (r^3)
+        let r=1 - abs(2*fbm(x,y,S)-1);
+        r=r*r*r;
 
-        // ridged transform + mild slope emphasis
-        let r = 1 - abs(2*n-1);
-        r = pow(r,P);
-        const dx = fbm(wxw+D,wyw,s*.7) - fbm(wxw-D,wyw,s*.7);
-        const dy = fbm(wxw,wyw+D,s*.7) - fbm(wxw,wyw-D,s*.7);
-        r *= .8 + .2*min(1,(abs(dx)+abs(dy))*1.5);
-
-        if(r<=.001) continue;
+        if(r<.002) continue;
 
         const yi=(y0 + py - amp*r + .5)|0;
-        c.fillRect(px, yi, step, step+1); // +1 overdraw hides scanline seams
+        c.fillRect(px, yi, step, step+.5); // +1 overdraw hides scanline seams
       }
     }
-    c.globalAlpha=a0;
   };
 }
 
