@@ -22,12 +22,16 @@ export function drawRoof(
 ) {
   const fwSum = side + fwRight;
 
-  // Roof top plane
+  // Convert ~0.75 device px to local units (handles BackgroundScene's ctx.scale)
+  const tr = (ctx as any).getTransform ? ctx.getTransform() : { a: 1, d: 1 };
+  const ey = 0.75 / (tr as any).d; // small Y overdraw to hide seams
+
+  // Roof top plane — overlap down onto walls along the shared edges
   poly(ctx, "#555", [
-    [x, y],
-    [x + fwLeft, y - depth],
-    [x + fwSum, y],
-    [x + side, y + depth]
+    [x,            y + ey],            // was y
+    [x + fwLeft,   y - depth],         // back edge (no seam needed)
+    [x + fwSum,    y + ey],            // was y
+    [x + side,     y + depth + ey]     // was y + depth
   ]);
 
   if (!v.hat) return;
@@ -41,36 +45,35 @@ export function drawRoof(
     (v as any).hatHeightPx ??
     clamp(Math.round(depth * 0.55), 6, 12);
 
-  // Hat lid
-  poly(ctx, "#666", [
-    [x - pad, y - hh],
-    [x + fwLeft, y - hh - depth],
-    [x + fwSum + pad, y - hh],
-    [x + side, y - hh + depth]
-  ]);
-
-  // Hat left fascia
+  // Fascias first (they already overlap down onto roof plane)
   poly(ctx, "#444", [
-    [x - pad, y - hh],
-    [x, y],
-    [x + side, y + depth],
-    [x + side, y - hh + depth]
+    [x - pad,   y - hh],
+    [x,         y + ey],            // base overlaps roof
+    [x + side,  y + depth + ey],    // base overlaps roof
+    [x + side,  y - hh + depth]
   ]);
 
-  // Hat right fascia
   poly(ctx, "#333", [
-    [x + side, y - hh + depth],
-    [x + side, y + depth],
-    [x + fwSum, y],
+    [x + side,      y - hh + depth],
+    [x + side,      y + depth + ey], // base overlaps roof
+    [x + fwSum,     y + ey],         // base overlaps roof
     [x + fwSum + pad, y - hh]
   ]);
 
-  // Antenna (optional)
+  // Hat lid LAST, shifted down slightly to overlap fascias and kill that seam
+  poly(ctx, "#666", [
+    [x - pad,         y - hh + ey],
+    [x + fwLeft,      y - hh - depth + ey],
+    [x + fwSum + pad, y - hh + ey],
+    [x + side,        y - hh + depth + ey]
+  ]);
+
+  // Antenna (optional) — stays on top
   if (v.hasAntenna && v.antennaHeight && v.antennaRungs) {
     drawAntenna(
       ctx,
       x + fwLeft * 0.5,
-      y - hh,
+      y - hh + ey, // align with lid shift
       v.antennaHeight,
       v.antennaRungs,
       time,

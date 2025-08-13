@@ -8,7 +8,9 @@ import { drawBuilding } from "./objects/drawBuilding";
 import { getInputState } from "../input/input";
 import { generateBuildingVariants } from "./init/initBuildingVariants";
 import { drawTerrainBehind, drawTerrainFront } from "./effects/terrain/Terrain";
+import { createFractalBackdropLayer } from "./effects/terrain/Terrain"; // ← spawnable “cloudy mountains”
 import type { BuildingVariant } from "./objects/types";
+import type { Drawer } from "./effects/terrain/Terrain";
 
 type Layer = {
   minHeight: number;
@@ -30,11 +32,19 @@ const layerBaseLiftApp = [30, 44, 30];
 let ctx: CanvasRenderingContext2D | null = null;
 let cameraX = 0, starScroll = 0, cloudScroll = 0;
 
+// Hyper-real “vaporwave” mountains (domain-warped cloud field) rendered:
+// after Moon (so in front of it), before Clouds, and before far buildings.
+let vaporMountains: Drawer | null = null;
+
 export const BackgroundScene = {
   setCanvas(c: CanvasRenderingContext2D) { ctx = c; },
   start() {
     cameraX = starScroll = cloudScroll = 0;
     for (const l of layers) l.buildings.clear();
+
+    // Spawn the fractal backdrop as its OWN layer instance
+    // seed, parallax, base, amp, color, step
+    vaporMountains = createFractalBackdropLayer(7, 0.12, 0.62, 90, "#131824", 4);
   },
   stop() {},
   update() {
@@ -58,14 +68,15 @@ export const BackgroundScene = {
     // Far space
     drawStars(ctx, w, h, time, starScroll);
 
-    // Moon (behind clouds/haze)
+    // Moon (furthest foreground item here — mountains render in front of it)
     drawMoon(ctx, w, h, time, cameraX);
 
-    // Mid sky overlays
+    // NEW: Vaporwave fractal mountains — in front of Moon, behind Clouds & Buildings
+    if (vaporMountains) vaporMountains(ctx, w, h, time, cameraX);
+
+    // Mid sky overlays (these sit in front of the mountains)
     drawClouds(ctx, w, h, time, cameraX + cloudScroll);
     drawNeonHaze(ctx, w, h, time, cameraX);
-
-
 
     const drawRow = (li: number) => {
       const L = layers[li], { minHeight, maxHeight, scale, scrollSpeed, buildings } = L;
@@ -85,7 +96,7 @@ export const BackgroundScene = {
       ctx!.restore();
     };
 
-    // Far row
+    // Far row (drawn AFTER mountains → mountains remain behind the far buildings)
     drawRow(0);
 
     // Terrain between rows
