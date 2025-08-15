@@ -12,58 +12,54 @@ import { createFractalBackdropLayer } from "./effects/terrain/Terrain";
 import type { BuildingVariant } from "./objects/types";
 import type { Drawer } from "./effects/terrain/Terrain";
 
-// 🔧 Player + map/colliders
 import { drawMapAndColliders } from "../renderer/render";
 import { loadLevel1, getCurrentMap } from "../renderer/level-loader";
 import { createAnimator } from "../../atlas/animationAtlas";
 import type { AtlasAnimator } from "../../animation/AtlasAnimator";
 import { Player } from "../../player/Player";
 
-type FarLayer = {
-  minHeight: number;
-  maxHeight: number;
-  scale: number;
-  scrollSpeed: number;
-  buildings: Map<number, BuildingVariant & { groundOffset: number; blinkOffset?: number }>;
+import { updateSmoothCamera, type Cam } from "../camera/Camera";
+
+type LayerCfg = {
+  minHeight:number; maxHeight:number; scale:number; scrollSpeed:number;
+  spacing:number; lift:number; bias:number;
+  buildings: Map<number, BuildingVariant & { groundOffset:number; blinkOffset?:number }>;
 };
 
-// Single, furthest layer (no array of layers)
-const FAR: FarLayer = {
-  minHeight: 80,
-  maxHeight: 250,
-  scale: 0.6,
-  scrollSpeed: 0.3,
-  buildings: new Map()
+const FAR: LayerCfg = {
+  minHeight:80, maxHeight:250, scale:0.60, scrollSpeed:0.08,
+  spacing:120, lift:30, bias:0.95, buildings:new Map()
 };
 
-// Tunables that previously varied per-layer
-const APPARENT_BIAS = 0.95;
-const LAYER_BASE_LIFT = 30;
-const BUILDING_SPACING = 120;
+const MID: LayerCfg = {
+  minHeight:70, maxHeight:200, scale:0.82, scrollSpeed:0.15,
+  spacing:136, lift:42, bias:1.05, buildings:new Map()
+};
 
 let ctx: CanvasRenderingContext2D | null = null;
-let cameraX = 0, starScroll = 0, cloudScroll = 0;
+let starScroll=0, cloudScroll=0;
 
 let vaporMountains: Drawer | null = null;
 
-// 👇 Player + animator
 let animator: AtlasAnimator | null = null;
 let player: Player | null = null;
+
+let bgX = 0;                 
+let cam: Cam = { x:0, y:0 }; 
 
 export const BackgroundScene = {
   setCanvas(c: CanvasRenderingContext2D) { ctx = c; },
 
   start() {
-    cameraX = starScroll = cloudScroll = 0;
+    starScroll = cloudScroll = 0;
     FAR.buildings.clear();
+    MID.buildings.clear();
 
-    // Fractal backdrop (behind clouds/buildings)
+    if (ctx) { cam.x = ctx.canvas.width * .5; cam.y = ctx.canvas.height * .5; }
+
     vaporMountains = createFractalBackdropLayer(7, 0.12, 0.62, 90, "#131824", 4);
-
-    // Load tile map + solids
     loadLevel1();
 
-    // Build animator and create player when atlas is ready
     createAnimator(a => {
       animator = a;
       player = new Player(a);
@@ -79,10 +75,25 @@ export const BackgroundScene = {
 
     if (player) {
       player.update(input, ctx);
-      cameraX = player.pos.x; // camera follows player
-    } else {
-      cameraX += (+!!input.right - +!!input.left) * 1.5;
     }
+
+    const px = player ? player.pos.x : bgX + (+!!input.right - +!!input.left) * 2;
+    bgX += (px - bgX) * 0.18;
+
+    const map = getCurrentMap(), tile=16;
+    const worldW = map ? map.width * tile : 10000;
+    const worldH = map ? map.height * tile : 10000;
+    const py = player ? player.pos.y : cam.y;
+
+    updateSmoothCamera(
+      cam,
+      px, py,
+      ctx.canvas.width, ctx.canvas.height,
+      worldW, worldH,
+      0.14,
+      1/60,
+      true
+    );
 
     starScroll += 0.15;
     cloudScroll += 0.25;
@@ -92,7 +103,6 @@ export const BackgroundScene = {
     if (!ctx) return;
     const w = ctx.canvas.width, h = ctx.canvas.height, time = t / 1e3;
 
-    // BG gradient
     const g = ctx.createLinearGradient(0, 0, 0, h);
     g.addColorStop(0, "#090016");
     g.addColorStop(0.4, "#250040");
@@ -101,54 +111,46 @@ export const BackgroundScene = {
     ctx.fillStyle = g;
     ctx.fillRect(0, 0, w, h);
 
-    // Far space
     drawStars(ctx, w, h, time, starScroll);
+    drawMoon(ctx, w, h, time, bgX);
+    if (vaporMountains) vaporMountains(ctx, w, h, time, bgX);
+    drawClouds(ctx, w, h, time, bgX + cloudScroll);
+    drawNeonHaze(ctx, w, h, time, bgX);
 
-    // Moon (furthest)
-    drawMoon(ctx, w, h, time, cameraX);
+    const drawRow = (cfg: LayerCfg) => {
+      if (!ctx) return;
+      const { minHeight, maxHeight, scale, scrollSpeed, spacing, lift, bias, buildings } = cfg;
+      const lx = bgX * scrollSpeed;
 
-    // Vapor mountains (in front of Moon)
-    if (vaporMountains) vaporMountains(ctx, w, h, time, cameraX);
+      ctx.save();
+      ctx.scale(scale, scale);
 
-    // Mid sky overlays
-    drawClouds(ctx, w, h, time, cameraX + cloudScroll);
-    drawNeonHaze(ctx, w, h, time, cameraX);
+      const sw = w / scale;
+      const si = Math.floor((lx - sw) / spacing);
+      const ei = Math.ceil ((lx + sw * 2) / spacing);
 
-    // ---- Single (furthest) building row ----
-    const drawFarRow = () => {
-      const { minHeight, maxHeight, scale, scrollSpeed, buildings } = FAR;
-      const sp = BUILDING_SPACING;
-      const lx = cameraX * scrollSpeed;
-
-      ctx!.save();
-      ctx!.scale(scale, scale);
-
-      const ss = w / scale;
-      const sx = Math.floor((lx - ss) / sp);
-      const ex = Math.ceil((lx + ss * 2) / sp);
-
-      for (let i = sx; i < ex; i++) {
+      for (let i = si; i < ei; i++) {
         if (!buildings.has(i)) {
-          const hm = (1 / scale) * APPARENT_BIAS;
+          const hm = (1 / scale) * bias;
           buildings.set(i, generateBuildingVariants(1, minHeight, maxHeight, hm)[0]);
         }
         const v = buildings.get(i)!;
-        const lift = LAYER_BASE_LIFT;
         const by = (h - v.h - 20 + v.groundOffset + 30 + lift) / scale;
-        drawBuilding(ctx!, i * sp - lx, by, v, time);
+        drawBuilding(ctx, i * spacing - lx, by, v, time);
       }
 
-      ctx!.restore();
+      ctx.restore();
     };
 
-    drawFarRow();
+    drawRow(FAR);
+    drawTerrainBehind(ctx, w, h, time, bgX);
+    drawRow(MID);
 
-    // Background terrain layer (drawn after far row, like before)
-    drawTerrainBehind(ctx, w, h, time, cameraX);
+    ctx.save();
+    ctx.translate(Math.round(w * .5 - cam.x), Math.round(h * .5 - cam.y));
 
-    // --- Gameplay layer: tile map + player ---
     const map = getCurrentMap();
-    if (map) drawMapAndColliders(ctx, map, 16); // 16×16 tiles
+    if (map) drawMapAndColliders(ctx, map, 16);
 
     if (player && animator) {
       const animName = player.anim.getCurrent();
@@ -159,7 +161,7 @@ export const BackgroundScene = {
       }
     }
 
-    // Foreground terrain overlay
-    drawTerrainFront(ctx, w, h, time, cameraX);
+    ctx.restore();
+    drawTerrainFront(ctx, w, h, time, bgX);
   }
 };
