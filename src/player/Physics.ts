@@ -1,3 +1,4 @@
+// src/player/Physics.ts
 import { getCurrentMap } from "../engine/renderer/MapContext";
 
 export type Vec2 = { x:number; y:number };
@@ -12,11 +13,10 @@ export interface PhysicsBody {
   bounce?:number;
   collide?:boolean;
 
-  // wall-cling helpers (set/used by gameplay)
   touchL?: boolean;
   touchR?: boolean;
-  cling?: boolean;        // when true + touching wall → slow slide
-  clingSlide?: number;    // px/frame cap (default ~0.25)
+  cling?: boolean;
+  clingSlide?: number;
 }
 
 export interface TileMapLike { width:number; height:number; tiles:number[]|Uint32Array; }
@@ -48,34 +48,54 @@ export const applyPhysics = (
   if (b.grounded) b.vel.x *= (1 - GFRIC);
   else            b.vel.x *= (1 - AIR);
 
-  // optional slow slide when clinging to wall
-  if (b.cling && (b.touchL || b.touchR)) {
-    const cap = b.clingSlide ?? 0.25;
-    if (b.vel.y > cap) b.vel.y = cap;
-  }
-
-  // horizontal sweep
+  // ---- HORIZONTAL SWEEP (with glue) ----
   const vx = b.vel.x;
-  b.pos.x += vx;
-  if (collides(b, ctx, m, topAligned)) {
-    b.pos.x -= vx;
-    b.vel.x = 0;
-    if (vx > 0) b.touchR = true; else if (vx < 0) b.touchL = true;
+  if (vx !== 0){
+    b.pos.x += vx;
+    if (collides(b, ctx, m, topAligned)) {
+      // back out to previous column edge
+      b.pos.x -= vx;
+      // mark side
+      if (vx > 0) b.touchR = true;
+      else        b.touchL = true;
+      // glue: kill ALL velocity immediately
+      b.vel.x = 0;
+      b.vel.y = 0;
+      b.grounded = false; // we're on a wall, not ground
+    }
   }
 
-  // vertical sweep
-  b.pos.y += b.vel.y;
-  if (collides(b, ctx, m, topAligned)) {
-    b.pos.y -= b.vel.y;
-    if (b.vel.y > 0) { b.vel.y = 0; b.grounded = true; }         // land
-    else {                                                        // ceiling tap
-      const r = b.bounce ?? CEIL;
-      b.vel.y = -b.vel.y * r;
-      if (Math.abs(b.vel.y) < 0.2) b.vel.y = 0;
+  // ---- VERTICAL SWEEP ----
+  const vy = b.vel.y;
+  if (vy !== 0){
+    b.pos.y += vy;
+    if (collides(b, ctx, m, topAligned)) {
+      b.pos.y -= vy;
+      if (vy > 0) { // landing
+        b.vel.y = 0; b.grounded = true;
+      } else {
+        // ceiling hit — if latched to a wall this frame, do NOT bounce
+        if (b.touchL || b.touchR) {
+          b.vel.y = 0;
+        } else {
+          const r = b.bounce ?? CEIL;
+          b.vel.y = -vy * r;
+          if (Math.abs(b.vel.y) < 0.2) b.vel.y = 0;
+        }
+        b.grounded = false;
+      }
+    } else {
       b.grounded = false;
     }
   } else {
-    b.grounded = false;
+    // vy==0 path: keep grounded flag from horizontal step unless we’re airborne
+    // nothing to do
+  }
+
+  // ---- POST: optional slow slide while clinging ----
+  if ((b.touchL || b.touchR) && b.cling){
+    const cap = b.clingSlide ?? 0.25;
+    if (b.vel.y > cap) b.vel.y = cap;
   }
 };
 
