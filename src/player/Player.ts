@@ -10,7 +10,6 @@ import { isBadAim, drawAimDots } from "./core/aim";
 import { resolveFacing } from "./core/facing";
 
 type State = 0|1|2; // ST.G/ST.F/ST.C widened so comparisons don’t get TS2367
-
 export type Player = ReturnType<typeof createPlayer>;
 
 export function createPlayer(atlas: AtlasAnimator){
@@ -40,7 +39,7 @@ export function createPlayer(atlas: AtlasAnimator){
     const isCling = p.st === ST.C;
     const anchored = body.grounded || isCling;
 
-    // slimmer API: (prev, isCling, anchored, aiming, clingSide, angle, vx, L, R)
+    // facing uses aim angle when aiming+anchored; otherwise movement/velocity
     p.facing = resolveFacing(
       p.facing, isCling, anchored, p.aiming, p.clingSide, p.aimAngle, body.vel.x, i.left, i.right
     );

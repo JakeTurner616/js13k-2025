@@ -1,3 +1,4 @@
+// src/engine/scenes/objects/drawWalls.ts
 const poly = (c: CanvasRenderingContext2D, fill: string, pts: [number, number][]) => {
   c.fillStyle = fill;
   c.beginPath();
@@ -10,7 +11,7 @@ const poly = (c: CanvasRenderingContext2D, fill: string, pts: [number, number][]
 export function drawWalls(
   ctx: CanvasRenderingContext2D,
   x: number, y: number,
-  fwLeft: number, fwRight: number,
+  fwRight: number,
   side: number, fh: number, depth: number,
   wallLeftColor: string, wallRightColor: string
 ) {

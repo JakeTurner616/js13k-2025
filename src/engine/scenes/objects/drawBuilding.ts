@@ -27,7 +27,6 @@ export function drawBuilding(
     ctx,
     x,
     y,
-    fwLeft,
     fwRight,
     side,
     fh,
@@ -42,5 +41,5 @@ export function drawBuilding(
 
   drawWindows(ctx, x, y, variant, colsLeft, colsRight, fwLeft, fwRight, side, fh, depth, time);
 
-  drawRoof(ctx, x, y, fwLeft, fwRight, side, fh, depth, variant, time);
+  drawRoof(ctx, x, y, fwLeft, fwRight, side, depth, variant, time); // removed fh param
 }

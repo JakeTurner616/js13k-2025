@@ -38,13 +38,16 @@ export default {
       include: ["**/*.glsl"],
       compress: true
     }),
-
-    typescript({
-      target: "ESNext",
-      module: "ESNext",
-      noEmitHelpers: true,
-      importHelpers: false
-    }),
+typescript({
+  target: "ESNext",
+  module: "ESNext",
+  noEmitHelpers: true,
+  importHelpers: false,
+  // Only compile .ts files so Tiled XML (.tsx) isn't parsed as TSX
+  include: ["src/**/*.ts"],
+  // (optional) if you must keep other TS files broad, you can instead:
+  // exclude: ["src/maps/tileset/**"]
+}),
 
     terser({
       compress: {
@@ -58,10 +61,41 @@ export default {
         reduce_vars: true,
         drop_console: true,
         drop_debugger: true,
-        toplevel: true
+        toplevel: true,
+        pure_getters: true,
+        unsafe_arrows: true,
+        unsafe_methods: true,
+        unsafe_proto: true,
+        unsafe_regexp: true,
+
+        hoist_funs: true,
+        hoist_props: true,
+        hoist_vars: true,
+        inline: true,
+        ecma: 2020,
+        module: true,
+        keep_fargs: false,
+        keep_fnames: false,
+        keep_infinity: false,
+        side_effects: true,
+        switches: true,
+        typeofs: false,
+        sequences: true,
+        conditionals: true,
+        dead_code: true,
+        evaluate: true,
+        if_return: true,
+        join_vars: true,
+        comparisons: true,
+        booleans: true,
+        loops: true,
+        unused: true
       },
       mangle: {
-        toplevel: true
+        toplevel: true,
+        properties: {
+          regex: /^_/
+        }
       },
       format: {
         comments: false,

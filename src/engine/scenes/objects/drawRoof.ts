@@ -17,7 +17,7 @@ export function drawRoof(
   ctx: CanvasRenderingContext2D,
   x: number, y: number,
   fwLeft: number, fwRight: number,
-  side: number, fh: number, depth: number,
+  side: number, depth: number,
   v: BuildingVariant & { blinkOffset?: number }, time: number
 ) {
   const fwSum = side + fwRight;
@@ -28,15 +28,15 @@ export function drawRoof(
 
   // Roof top plane — overlap down onto walls along the shared edges
   poly(ctx, "#555", [
-    [x,            y + ey],            // was y
+    [x,            y + ey],
     [x + fwLeft,   y - depth],         // back edge (no seam needed)
-    [x + fwSum,    y + ey],            // was y
-    [x + side,     y + depth + ey]     // was y + depth
+    [x + fwSum,    y + ey],
+    [x + side,     y + depth + ey]
   ]);
 
   if (!v.hat) return;
 
-  // Hat sizing decoupled from building height (fh)
+  // Hat sizing decoupled from building height
   const pad =
     (v as any).hatOverhangPx ??
     clamp(Math.round(side * 0.08), 3, 8);
@@ -47,16 +47,16 @@ export function drawRoof(
 
   // Fascias first (they already overlap down onto roof plane)
   poly(ctx, "#444", [
-    [x - pad,   y - hh],
-    [x,         y + ey],            // base overlaps roof
-    [x + side,  y + depth + ey],    // base overlaps roof
-    [x + side,  y - hh + depth]
+    [x - pad,      y - hh],
+    [x,            y + ey],            // base overlaps roof
+    [x + side,     y + depth + ey],    // base overlaps roof
+    [x + side,     y - hh + depth]
   ]);
 
   poly(ctx, "#333", [
-    [x + side,      y - hh + depth],
-    [x + side,      y + depth + ey], // base overlaps roof
-    [x + fwSum,     y + ey],         // base overlaps roof
+    [x + side,        y - hh + depth],
+    [x + side,        y + depth + ey], // base overlaps roof
+    [x + fwSum,       y + ey],         // base overlaps roof
     [x + fwSum + pad, y - hh]
   ]);
 
