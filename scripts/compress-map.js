@@ -142,6 +142,7 @@ export const LEVEL_1_HEIGHT = ${map.height};
   console.log(`✔ LEVEL_1_BASE64 written to:     ${outputTsPath}`);
   console.log(`✔ Packed tiles PNG:              ${outPackedPng} (${used.length} tiles)`);
   console.log(`✔ tileAtlas.ts written:          ${outTileAtlasTs}`);
+  console.log(`ℹ Remember to compress ${outPackedPng} manually as needed for production into src/assets/img/map-packed-min.png.`);
   console.log(`ℹ Remember to embed ${outPackedPng} in tools/embed-image.js as the 'map' image.`);
 }
 

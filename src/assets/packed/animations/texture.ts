@@ -1,11 +1,3 @@
-// Minimal meta used by AtlasAnimator: x,y,w,h, srcW,srcH, offX,offY translated from texture.json by hand
-const ftp = {
-  frames: {
-    "18_Alternative_Colour_Cat_Death-Sheet": {frame:{x:0,y:0,w:245,h:24}, sss:{x:7,y:8}, src:{w:288,h:32}},
-    "2_Alternative_Colour_Cat_Run-Sheet":   {frame:{x:0,y:24,w:303,h:15}, sss:{x:8,y:13}, src:{w:320,h:32}},
-    "1_Alternative_Colour_Cat_Idle-Sheet":  {frame:{x:0,y:39,w:237,h:18}, sss:{x:8,y:10}, src:{w:256,h:32}},
-    "4_Alternative_Colour_Cat_Fall-Sheet":  {frame:{x:0,y:57,w:107,h:18}, sss:{x:10,y:9}, src:{w:128,h:32}},
-    "3_Alternative_Colour_Cat_Jump-Sheet":  {frame:{x:107,y:57,w:107,h:17}, sss:{x:9,y:11}, src:{w:128,h:32}}
-  }
-} as const;
+// Auto-generated from texture.json — do not edit
+const ftp = {"frames":{"18_Alternative_Colour_Cat_Death-Sheet":{"frame":{"x":0,"y":0,"w":245,"h":24},"rotated":false,"trimmed":true,"spriteSourceSize":{"x":7,"y":8,"w":245,"h":24},"sourceSize":{"w":288,"h":32},"pivot":{"x":0.5,"y":0.5}},"1_Alternative_Colour_Cat_Idle-Sheet":{"frame":{"x":0,"y":24,"w":237,"h":18},"rotated":false,"trimmed":true,"spriteSourceSize":{"x":8,"y":10,"w":237,"h":18},"sourceSize":{"w":256,"h":32},"pivot":{"x":0.5,"y":0.5}},"8_Alternative_Colour_Cat_Ledge_Grab_Idle-Sheet":{"frame":{"x":0,"y":42,"w":236,"h":20},"rotated":false,"trimmed":true,"spriteSourceSize":{"x":9,"y":10,"w":236,"h":20},"sourceSize":{"w":256,"h":32},"pivot":{"x":0.5,"y":0.5}},"6_Alternative_Colour_Cat_Dash-Sheet":{"frame":{"x":0,"y":62,"w":110,"h":16},"rotated":false,"trimmed":true,"spriteSourceSize":{"x":8,"y":12,"w":110,"h":16},"sourceSize":{"w":128,"h":32},"pivot":{"x":0.5,"y":0.5}},"3_Alternative_Colour_Cat_Jump-Sheet":{"frame":{"x":0,"y":78,"w":107,"h":17},"rotated":false,"trimmed":true,"spriteSourceSize":{"x":9,"y":11,"w":107,"h":17},"sourceSize":{"w":128,"h":32},"pivot":{"x":0.5,"y":0.5}},"4_Alternative_Colour_Cat_Fall-Sheet":{"frame":{"x":110,"y":62,"w":107,"h":18},"rotated":false,"trimmed":true,"spriteSourceSize":{"x":10,"y":9,"w":107,"h":18},"sourceSize":{"w":128,"h":32},"pivot":{"x":0.5,"y":0.5}}},"meta":{"app":"http://free-tex-packer.com","version":"0.6.7","image":"texture.png","format":"RGBA8888","size":{"w":245,"h":95},"scale":1}} as const;
 export default ftp;

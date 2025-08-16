@@ -156,8 +156,7 @@ export const BackgroundScene = {
       const animName = player.anim.getCurrent();
       const meta = animator.getMeta(animName);
       if (meta) {
-        const frame = Math.floor((t / 1000) * meta.fps) % meta.frameCount;
-        player.draw(ctx, t, frame);
+        player.draw(ctx, t);
       }
     }
 

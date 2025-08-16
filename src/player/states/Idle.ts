@@ -1,18 +1,13 @@
 // src/player/states/Idle.ts
-
 import type { State, InputState } from "./types";
 
 export const Idle: State = {
-  enter(player) {
-    player.setAnimation("idle");
-    player.vel.x = 0;
-  },
+  enter(p){ p.setAnimation("idle"); p.vel.x = 0; },
+  update(p, i:InputState){
+    // ground aiming / release-to-fling
+    if (i.jump && p.grounded) { p.aimTick(i); return; }
+    if (!i.jump && p.wasJump && p.grounded && p.aiming) { p.setState("fling"); return; }
 
-  update(player, input: InputState) {
-    if (input.jump && player.grounded) {
-      player.setState("jump");
-    } else if (input.left || input.right) {
-      player.setState("run");
-    }
+    if (i.left || i.right) p.setState("run");
   }
 };

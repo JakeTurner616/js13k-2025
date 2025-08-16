@@ -24,34 +24,10 @@
         "y": 0.5
       }
     },
-    "2_Alternative_Colour_Cat_Run-Sheet": {
-      "frame": {
-        "x": 0,
-        "y": 24,
-        "w": 303,
-        "h": 15
-      },
-      "rotated": false,
-      "trimmed": true,
-      "spriteSourceSize": {
-        "x": 8,
-        "y": 13,
-        "w": 303,
-        "h": 15
-      },
-      "sourceSize": {
-        "w": 320,
-        "h": 32
-      },
-      "pivot": {
-        "x": 0.5,
-        "y": 0.5
-      }
-    },
     "1_Alternative_Colour_Cat_Idle-Sheet": {
       "frame": {
         "x": 0,
-        "y": 39,
+        "y": 24,
         "w": 237,
         "h": 18
       },
@@ -72,20 +48,44 @@
         "y": 0.5
       }
     },
-    "4_Alternative_Colour_Cat_Fall-Sheet": {
+    "8_Alternative_Colour_Cat_Ledge_Grab_Idle-Sheet": {
       "frame": {
         "x": 0,
-        "y": 57,
-        "w": 107,
-        "h": 18
+        "y": 42,
+        "w": 236,
+        "h": 20
       },
       "rotated": false,
       "trimmed": true,
       "spriteSourceSize": {
-        "x": 10,
-        "y": 9,
-        "w": 107,
-        "h": 18
+        "x": 9,
+        "y": 10,
+        "w": 236,
+        "h": 20
+      },
+      "sourceSize": {
+        "w": 256,
+        "h": 32
+      },
+      "pivot": {
+        "x": 0.5,
+        "y": 0.5
+      }
+    },
+    "6_Alternative_Colour_Cat_Dash-Sheet": {
+      "frame": {
+        "x": 0,
+        "y": 62,
+        "w": 110,
+        "h": 16
+      },
+      "rotated": false,
+      "trimmed": true,
+      "spriteSourceSize": {
+        "x": 8,
+        "y": 12,
+        "w": 110,
+        "h": 16
       },
       "sourceSize": {
         "w": 128,
@@ -98,8 +98,8 @@
     },
     "3_Alternative_Colour_Cat_Jump-Sheet": {
       "frame": {
-        "x": 107,
-        "y": 57,
+        "x": 0,
+        "y": 78,
         "w": 107,
         "h": 17
       },
@@ -119,6 +119,30 @@
         "x": 0.5,
         "y": 0.5
       }
+    },
+    "4_Alternative_Colour_Cat_Fall-Sheet": {
+      "frame": {
+        "x": 110,
+        "y": 62,
+        "w": 107,
+        "h": 18
+      },
+      "rotated": false,
+      "trimmed": true,
+      "spriteSourceSize": {
+        "x": 10,
+        "y": 9,
+        "w": 107,
+        "h": 18
+      },
+      "sourceSize": {
+        "w": 128,
+        "h": 32
+      },
+      "pivot": {
+        "x": 0.5,
+        "y": 0.5
+      }
     }
   },
   "meta": {
@@ -127,8 +151,8 @@
     "image": "texture.png",
     "format": "RGBA8888",
     "size": {
-      "w": 303,
-      "h": 75
+      "w": 245,
+      "h": 95
     },
     "scale": 1
   }

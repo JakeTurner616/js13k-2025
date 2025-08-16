@@ -1,6 +1,13 @@
 // src/player/AnimationController.ts
 
-export type AnimationName = "idle" | "run" | "jump";
+// Allow only animation clip names that actually exist in the atlas
+export type AnimationName =
+  | "idle"
+  | "dash"
+  | "jump"
+  | "fall"
+  | "ledge"
+  | "death";
 
 export class AnimationController {
   private current: AnimationName = "idle";
