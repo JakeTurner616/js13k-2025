@@ -1,15 +1,13 @@
 // src/animation/AtlasAnimator.ts
-export type AtlasMeta = Record<
-  string,
-  {
-    // packed (trimmed) strip rect inside the atlas image
-    x: number; y: number; w: number; h: number;
-    // original untrimmed strip size (e.g., N*fw by fh)
-    srcW: number; srcH: number;
-    // how much was trimmed off left/top in untrimmed coords
-    offX: number; offY: number;
-  }
->;
+type AtlasEntry = {
+  // packed (trimmed) strip rect in atlas
+  x: number; y: number; w: number; h: number;
+  // untrimmed offsets (cropped from left/top)
+  offX: number; offY: number;
+  // optional: original untrimmed size (not used by renderer)
+  srcW?: number; srcH?: number;
+};
+export type AtlasMeta = Record<string, AtlasEntry>;
 
 export interface AnimationConfig {
   name: string;
@@ -19,18 +17,20 @@ export interface AnimationConfig {
   dy: number;
 }
 
+const { max, min } = Math;
+
 export class AtlasAnimator {
-  private img: HTMLImageElement;
-  private meta: AtlasMeta;
-  private fw: number; // per-frame logical width (pixels)
-  private fh: number; // per-frame logical height (pixels)
-  private anims: AnimationConfig[];
+  img!: HTMLImageElement;
+  meta!: AtlasMeta;
+  fw!: number;   // per-frame logical width
+  fh!: number;   // per-frame logical height
+  anims!: AnimationConfig[];
 
   constructor(
     img: HTMLImageElement,
     meta: AtlasMeta,
-    fw: number, // pass your animation frame width (e.g., 32)
-    fh: number, // pass your animation frame height (e.g., 32)
+    fw: number,
+    fh: number,
     anims: AnimationConfig[]
   ) {
     this.img = img;
@@ -40,46 +40,46 @@ export class AtlasAnimator {
     this.anims = anims;
   }
 
-  getMeta = (name: string) => this.anims.find(a => a.name === name);
+  getMeta(name: string) {
+    return this.anims.find(a => a.name === name);
+  }
 
   drawAll(ctx: CanvasRenderingContext2D, t: number) {
-    for (let a of this.anims) {
-      const f = (((t / 1e3) * a.fps) | 0) % a.frameCount;
+    const sec = t / 1e3;
+    for (const a of this.anims) {
+      const f = ((sec * a.fps) | 0) % a.frameCount;
       this.drawFrame(ctx, a.name, f, a.dx, a.dy);
     }
   }
 
   /**
-   * Trim-aware draw: intersect each logical fw×fh frame with the kept (trimmed) strip.
-   * Untrimmed space:
-   *   keepX ∈ [offX, offX+w), keepY ∈ [offY, offY+h)
-   *   frameX ∈ [i*fw, i*fw+fw), frameY ∈ [0, fh)
+   * Trim-aware draw: intersect logical frame (fw×fh at index i)
+   * with kept region (x,y,w,h) offset by (offX,offY) in untrimmed space.
    */
   drawFrame(ctx: CanvasRenderingContext2D, name: string, i: number, dx: number, dy: number) {
     const m = this.meta[name];
     if (!m) return;
+    const { x, y, w, h, offX, offY } = m;
 
-    // Horizontal intersection in untrimmed coords
+    // Horizontal intersection (untrimmed space)
     const f0x = i * this.fw, f1x = f0x + this.fw;
-    const k0x = m.offX,      k1x = m.offX + m.w;
-    const sx0U = Math.max(f0x, k0x);
-    const sx1U = Math.min(f1x, k1x);
+    const k0x = offX,        k1x = offX + w;
+    const sx0U = max(f0x, k0x), sx1U = min(f1x, k1x);
     const sw = (sx1U - sx0U) | 0;
     if (sw <= 0) return;
 
-    // Vertical intersection in untrimmed coords
+    // Vertical intersection (untrimmed space)
     const f0y = 0,           f1y = this.fh;
-    const k0y = m.offY,      k1y = m.offY + m.h;
-    const sy0U = Math.max(f0y, k0y);
-    const sy1U = Math.min(f1y, k1y);
+    const k0y = offY,        k1y = offY + h;
+    const sy0U = max(f0y, k0y), sy1U = min(f1y, k1y);
     const sh = (sy1U - sy0U) | 0;
     if (sh <= 0) return;
 
-    // Map untrimmed → packed
-    const sx = (m.x + (sx0U - m.offX)) | 0;
-    const sy = (m.y + (sy0U - m.offY)) | 0;
+    // Map untrimmed → packed atlas coords
+    const sx = (x + (sx0U - offX)) | 0;
+    const sy = (y + (sy0U - offY)) | 0;
 
-    // Destination offset inside the logical fw×fh box
+    // Destination offset inside logical frame box
     const ddx = (dx + (sx0U - f0x)) | 0;
     const ddy = (dy + (sy0U - f0y)) | 0;
 

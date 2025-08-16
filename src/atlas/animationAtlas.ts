@@ -62,7 +62,7 @@ const FW = 32, FH = 32;
 const mkAnim = (name: keyof typeof nameMap, fps: number, dx = 0, dy = 0): AnimationConfig | null => {
   const m = atlasMeta[name as string];
   if (!m) return null;
-  const frames = Math.max(1, (m.srcW / FW) | 0);
+  const frames = Math.max(1, (((m.srcW ?? FW) / FW) | 0));
   return { name: name as string, frameCount: frames, fps, dx, dy };
 };
 

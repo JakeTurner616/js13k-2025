@@ -1,7 +1,7 @@
 // src/engine/math/noise.ts
 // Shared tiny noise bits: 2D fBm, 1D ridge curve, and a 1D hash.
 
-const { sin, abs, floor } = Math;
+const { sin, floor } = Math;
 
 /** 2D fBm → 0..1 (2 octaves by default; tweak o for crisp/smooth) */
 export function fb(x:number, y:number, s:number, o=2){
