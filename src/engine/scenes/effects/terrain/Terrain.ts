@@ -3,7 +3,7 @@
 
 export type Drawer = (ctx:CanvasRenderingContext2D,w:number,h:number,t:number,camX:number)=>void;
 
-const {sin,abs,min,max}=Math;
+const {sin,min,max}=Math;
 
 // Shared 1D ridge curve for silhouette bands
 function ridge(x:number,s:number){
@@ -59,8 +59,11 @@ export function createFractalBackdropLayer(
   color:string,  // flat fill color (use gradient externally if desired)
   step=4         // pixel grid step (4 matches cloud look; lower = crisper)
 ):Drawer{
+  // one-time salt so each construction is unique but deterministic during the session
+  const s0 = seed + ((Math.random()*1e9)|0);
+
   return (c,w,h,_t,camX)=>{
-    const y0=(h*base)|0, off=camX*parallax, S=seed*.7, sc=.9, half=h>>1;
+    const y0=(h*base)|0, off=camX*parallax, S=s0*.7, sc=.9, half=h>>1;
     c.fillStyle=color;
 
     for(let px=0; px<w; px+=step){
@@ -68,12 +71,12 @@ export function createFractalBackdropLayer(
       for(let py=0; py<half; py+=step){
         const wy=py*sc;
 
-        // domain warp
-        const x=wx + fbm(wx*.5,     wy*.5,     seed)*60;
-        const y=wy + fbm(wx*.5+100, wy*.5+100, seed)*40;
+        // domain warp (salted)
+        const x=wx + fbm(wx*.5,     wy*.5,     s0)*60;
+        const y=wy + fbm(wx*.5+100, wy*.5+100, s0)*40;
 
-        // ridged transform with cheap peak sharpening (r^3)
-        let r=1 - abs(2*fbm(x,y,S)-1);
+        // ridged transform with cheap peak sharpening (r^3), salted
+        let r=1 - Math.abs(2*fbm(x,y,S)-1);
         r=r*r*r;
 
         if(r<.002) continue;

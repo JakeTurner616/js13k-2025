@@ -4,16 +4,40 @@
 import fs from "fs";
 import path from "path";
 
-// Only the characters used in "HELLO WORLD!"
+/**
+ * 5x7 bitmap glyphs.
+ * Rows are 5 chars wide using '#' for on and '.' for off.
+ * Keep 7 rows per glyph.
+ */
 const FONT = {
-  "H": [
-    "#...#",
+  // ==== Uppercase set for NES-style text ====
+
+  "A": [
+    ".###.",
     "#...#",
     "#...#",
     "#####",
     "#...#",
     "#...#",
     "#...#"
+  ],
+  "C": [
+    ".###.",
+    "#...#",
+    "#....",
+    "#....",
+    "#....",
+    "#...#",
+    ".###."
+  ],
+  "D": [
+    "####.",
+    "#...#",
+    "#...#",
+    "#...#",
+    "#...#",
+    "#...#",
+    "####."
   ],
   "E": [
     "#####",
@@ -23,6 +47,33 @@ const FONT = {
     "#....",
     "#....",
     "#####"
+  ],
+  "H": [
+    "#...#",
+    "#...#",
+    "#...#",
+    "#####",
+    "#...#",
+    "#...#",
+    "#...#"
+  ],
+  "I": [
+    "#####",
+    "..#..",
+    "..#..",
+    "..#..",
+    "..#..",
+    "..#..",
+    "#####"
+  ],
+  "K": [
+    "#...#",
+    "#..#.",
+    "###..",
+    "#..#.",
+    "#...#",
+    "#...#",
+    "#...#"
   ],
   "L": [
     "#....",
@@ -42,23 +93,14 @@ const FONT = {
     "#...#",
     ".###."
   ],
-  " ": [
-    ".....",
-    ".....",
-    ".....",
-    ".....",
-    ".....",
-    ".....",
-    "....."
-  ],
-  "W": [
+  "P": [
+    "####.",
     "#...#",
     "#...#",
-    "#...#",
-    "#.#.#",
-    "#.#.#",
-    "##.##",
-    "#...#"
+    "####.",
+    "#....",
+    "#....",
+    "#...."
   ],
   "R": [
     "####.",
@@ -69,14 +111,51 @@ const FONT = {
     "#..#.",
     "#...#"
   ],
-  "D": [
-    "####.",
-    "#...#",
-    "#...#",
-    "#...#",
-    "#...#",
-    "#...#",
+  "S": [
+    ".####",
+    "#....",
+    "#....",
+    ".###.",
+    "....#",
+    "....#",
     "####."
+  ],
+  "T": [
+    "#####",
+    "..#..",
+    "..#..",
+    "..#..",
+    "..#..",
+    "..#..",
+    "..#.."
+  ],
+  "W": [
+    "#...#",
+    "#...#",
+    "#...#",
+    "#.#.#",
+    "#.#.#",
+    "##.##",
+    "#...#"
+  ],
+
+  " ": [
+    ".....",
+    ".....",
+    ".....",
+    ".....",
+    ".....",
+    ".....",
+    "....."
+  ],
+  "/": [
+    "....#",
+    "...#.",
+    "..#..",
+    ".#...",
+    "#....",
+    ".....",
+    "....."
   ],
   "!": [
     "..#..",
@@ -114,14 +193,14 @@ function encodeGlyph(rows, char) {
     console.warn(`⚠️  Expected 35 bits for '${char}', got ${bits.length}`);
   }
 
-  // Convert bit string to BigInt, then shift left so that bit 0 becomes MSB (bit 34)
-  const value = BigInt("0b" + bits) << BigInt(0); // Already MSB-first if you interpret bits[0] = bit 34
-  const shifted = value << BigInt(0); // optional, no-op
-  const hex = shifted.toString(36).padStart(7, "0");
+  // MSB-first packing to base36 (7 chars)
+  const value = BigInt("0b" + bits);
+  const hex = value.toString(36).padStart(7, "0");
 
   console.log(`Base36: ${hex}`);
   return hex;
 }
+
 function generateRuntimeCode(glyphMap, encodedData) {
   return `// Auto-generated font (base36 compressed 5x7)
 
@@ -134,8 +213,11 @@ export const data: string = "${encodedData}";
 // === Main ===
 
 const usedChars = Object.keys(FONT);
+// Keep deterministic order so glyph→data alignment is stable
+usedChars.sort((a, b) => a.localeCompare(b));
+
 const glyphMap = usedChars.join("");
-const encodedData = usedChars.map(c => encodeGlyph(FONT[c])).join("");
+const encodedData = usedChars.map(c => encodeGlyph(FONT[c], c)).join("");
 
 const output = generateRuntimeCode(glyphMap, encodedData);
 const outFile = path.resolve("src/engine/font/procFont.ts");
