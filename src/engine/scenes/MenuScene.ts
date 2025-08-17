@@ -17,7 +17,6 @@ import { drawText } from "../font/fontEngine";
 
 const HINT = "CLICK / TAP TO START!";
 
-type TrailPt = { x:number; y:number; t:number };
 type XY = { x:number; y:number };
 type RowCfg = { min:number; max:number; sc:number; sp:number; gap:number; lift:number; bias:number; M:Map<number,BuildingVariant> };
 
@@ -27,7 +26,6 @@ export const MenuScene = {
 
   _anim: null as AtlasAnimator | null,
   _pos: null as XY | null,
-  _trail: [] as TrailPt[],
 
   _vapor: null as Drawer | null,
   _bgX: 0,
@@ -44,14 +42,15 @@ export const MenuScene = {
   start(){
     this._rows[0].M.clear(); this._rows[1].M.clear();
     this._vapor = createFractalBackdropLayer(7, 0.12, 0.60, 84, "#131824", 4);
-    this._bgX = 0; this._t0 = 0; this._trail.length = 0;
+    this._bgX = 0; this._t0 = 0;
+
+    // crisp pixels for sprite/atlas (optional but nice)
+    if (this.__ctx) this.__ctx.imageSmoothingEnabled = false;
+
     addEventListener("click", () => this.onClick?.(), { once:true });
   },
 
-  update(){
-    const now = performance.now();
-    this._trail = this._trail.filter(p => now - p.t < 220);
-  },
+  update(){ /* no-op (trail removed) */ },
 
   draw(tMs:number){
     const c = this.__ctx, a = this._anim;
@@ -94,22 +93,12 @@ export const MenuScene = {
     row(this._rows[1]);
     drawTerrainFront(c, w, h, t, this._bgX);
 
-    // cat
+    // cat (no afterimage trail)
     if (!a) return;
     const fw = a.fw|0, fh = a.fh|0;
     if (!this._pos) this._pos = { x: ((w - fw)>>1), y: ((h - fh)>>1) };
     const bob = Math.sin(t*1.7)*6, px = this._pos.x|0, py = (this._pos.y + bob)|0;
     const meta = a.getMeta("dash") || a.getMeta("idle"), frames = meta?.frameCount || 1, fps = meta?.fps || 8, frame = ((t*fps)|0) % frames;
-
-
-
-    // afterimage
-    this._trail.push({x:px,y:py,t:performance.now()}); if (this._trail.length>10) this._trail.shift();
-    for (let i=0;i<this._trail.length;i++){
-      const p = this._trail[i], age = (performance.now()-p.t)/220;
-      c.globalAlpha = .12*(1-age); a.drawFrame(c, "dash", frame, p.x, p.y);
-    }
-    c.globalAlpha = 1;
 
     a.drawFrame(c, "dash", frame, px, py);
 
