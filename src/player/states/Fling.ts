@@ -15,8 +15,17 @@ export const Fling: State = {
     p.aimPower = p.minPower;
   },
   update(p){
-    if (p.vel.y > 0 && p.anim.getCurrent() !== "fall") p.setAnimation("fall");
+    // 🚨 PRIORITIZE WALL CLING FIRST (prevents dash→fall→ledge flicker)
+    if (p.body.touchL || p.body.touchR) {
+      if (p.anim.getCurrent() !== "ledge") p.setAnimation("ledge");
+      p.setState("cling");
+      return;
+    }
+
+    // Then handle landing…
     if (p.grounded) { p.setAnimation("idle"); p.setState("idle"); return; }
-    if (p.body.touchL || p.body.touchR) { p.setState("cling"); return; }
+
+    // …and only then switch to fall while airborne
+    if (p.vel.y > 0 && p.anim.getCurrent() !== "fall") p.setAnimation("fall");
   }
 };

@@ -17,6 +17,9 @@ export interface PhysicsBody {
   touchR?: boolean;
   cling?: boolean;
   clingSlide?: number;
+
+  // NEW: which wall we hit this step: -1 = left, +1 = right, 0/undefined = none
+  hitWall?: number;
 }
 
 export interface TileMapLike { width:number; height:number; tiles:number[]|Uint32Array; }
@@ -38,6 +41,7 @@ export const applyPhysics = (
   if (!m || b.collide === false) return;
 
   b.touchL = b.touchR = false;
+  b.hitWall = 0; // reset each step
 
   // integrate
   const g = b.gravity ?? G;
@@ -55,9 +59,9 @@ export const applyPhysics = (
     if (collides(b, ctx, m, topAligned)) {
       // back out to previous column edge
       b.pos.x -= vx;
-      // mark side
-      if (vx > 0) b.touchR = true;
-      else        b.touchL = true;
+      // mark side and a one-step "hit wall" flag
+      if (vx > 0) { b.touchR = true; b.hitWall = +1; console.log("[phys] HIT WALL RIGHT pos", b.pos.x|0, b.pos.y|0); }
+      else        { b.touchL = true; b.hitWall = -1; console.log("[phys] HIT WALL LEFT  pos", b.pos.x|0, b.pos.y|0); }
       // glue: kill ALL velocity immediately
       b.vel.x = 0;
       b.vel.y = 0;
@@ -73,6 +77,7 @@ export const applyPhysics = (
       b.pos.y -= vy;
       if (vy > 0) { // landing
         b.vel.y = 0; b.grounded = true;
+        console.log("[phys] LAND pos", b.pos.x|0, b.pos.y|0, (performance.now()|0));
       } else {
         // ceiling hit — if latched to a wall this frame, do NOT bounce
         if (b.touchL || b.touchR) {
@@ -87,9 +92,6 @@ export const applyPhysics = (
     } else {
       b.grounded = false;
     }
-  } else {
-    // vy==0 path: keep grounded flag from horizontal step unless we’re airborne
-    // nothing to do
   }
 
   // ---- POST: optional slow slide while clinging ----

@@ -1,22 +1,24 @@
 // src/main.ts
-
 import { setupCanvas } from "./engine/renderer/initCanvas";
 import { createAnimator } from "./atlas/animationAtlas";
 import { setupInput } from "./engine/input/input";
-// ❌ no GameScene (stays removed)
 import { MenuScene } from "./engine/scenes/MenuScene";
 import { BackgroundScene } from "./engine/scenes/BackgroundScene";
-import { setScene, loop } from "./engine/scenes/SceneManager";
+import { setScene, loop, setDrawHz } from "./engine/scenes/SceneManager";
+import { attachFPS } from "./engine/debug/FPS";
 import { zzfx, zzfxM, playZzfxMSong } from "./engine/audio/SoundEngine";
 import { retro1Song } from "./music/retro1";
 import { start1 } from "./sfx/start";
 
-// Logical render size (your initCanvas can scale to fit the screen)
 const WORLD = { w: 480, h: 270 };
 const { ctx } = setupCanvas(WORLD.w, WORLD.h);
 setupInput();
 
-// Scenes just need the 2D context now
+// Debug overlay + force 60 draw fps (setDrawHz(0) to remove cap)
+attachFPS(ctx);
+setDrawHz(60);
+
+// scenes
 MenuScene.setCanvas(ctx);
 BackgroundScene.setCanvas(ctx);
 
@@ -31,24 +33,15 @@ const [l, r] = zzfxM(i, p, s, b);
 let src: AudioBufferSourceNode | undefined;
 
 createAnimator((animator) => {
-  // 👉 give MenuScene the animator so it can render the dash strip
   MenuScene.setAnimator(animator);
 
-  addEventListener(
-    "pointerdown",
-    () => {
-      zzfx();                 // Unlock audio
-      setScene(BackgroundScene);
-      src = playZzfxMSong(l, r);
-    },
-    { once: true }
-  );
+  addEventListener("pointerdown", () => {
+    zzfx();                 // unlock audio
+    setScene(BackgroundScene);
+    src = playZzfxMSong(l, r);
+  }, { once: true });
 
-  addEventListener(
-    "click",
-    () => { zzfx(...start1); },
-    { once: true }
-  );
+  addEventListener("click", () => { zzfx(...start1); }, { once: true });
 
   setScene(MenuScene);
   requestAnimationFrame(loop);
