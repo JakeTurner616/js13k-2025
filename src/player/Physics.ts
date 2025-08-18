@@ -18,7 +18,7 @@ export interface PhysicsBody {
   cling?: boolean;
   clingSlide?: number;
 
-  // NEW: which wall we hit this step: -1 = left, +1 = right, 0/undefined = none
+  // Kept for compatibility; not used by the simplified solver.
   hitWall?: number;
 }
 
@@ -40,53 +40,42 @@ export const applyPhysics = (
   const m = mapOverride ?? getCurrentMap();
   if (!m || b.collide === false) return;
 
+  // Reset contacts each step
   b.touchL = b.touchR = false;
-  b.hitWall = 0; // reset each step
+  b.hitWall = 0;
 
-  // integrate
+  // Integrate
   const g = b.gravity ?? G;
   b.vel.y += g;
   if (b.acc) { b.vel.x += b.acc.x; b.vel.y += b.acc.y; }
 
-  // damping
-  if (b.grounded) b.vel.x *= (1 - GFRIC);
-  else            b.vel.x *= (1 - AIR);
+  // Damping
+  b.vel.x *= 1 - (b.grounded ? GFRIC : AIR);
 
-  // ---- HORIZONTAL SWEEP (with glue) ----
+  // ---- HORIZONTAL SWEEP (glue to wall) ----
   const vx = b.vel.x;
-  if (vx !== 0){
+  if (vx){
     b.pos.x += vx;
     if (collides(b, ctx, m, topAligned)) {
-      // back out to previous column edge
       b.pos.x -= vx;
-      // mark side and a one-step "hit wall" flag
-      if (vx > 0) { b.touchR = true; b.hitWall = +1; console.log("[phys] HIT WALL RIGHT pos", b.pos.x|0, b.pos.y|0); }
-      else        { b.touchL = true; b.hitWall = -1; console.log("[phys] HIT WALL LEFT  pos", b.pos.x|0, b.pos.y|0); }
-      // glue: kill ALL velocity immediately
+      (vx > 0 ? (b.touchR = true) : (b.touchL = true));
       b.vel.x = 0;
-      b.vel.y = 0;
-      b.grounded = false; // we're on a wall, not ground
+      b.vel.y = 0;      // glue stops vertical motion on same tick as wall catch
+      b.grounded = false;
     }
   }
 
   // ---- VERTICAL SWEEP ----
   const vy = b.vel.y;
-  if (vy !== 0){
+  if (vy){
     b.pos.y += vy;
     if (collides(b, ctx, m, topAligned)) {
       b.pos.y -= vy;
-      if (vy > 0) { // landing
+      if (vy > 0) {          // landing
         b.vel.y = 0; b.grounded = true;
-        console.log("[phys] LAND pos", b.pos.x|0, b.pos.y|0, (performance.now()|0));
-      } else {
-        // ceiling hit — if latched to a wall this frame, do NOT bounce
-        if (b.touchL || b.touchR) {
-          b.vel.y = 0;
-        } else {
-          const r = b.bounce ?? CEIL;
-          b.vel.y = -vy * r;
-          if (Math.abs(b.vel.y) < 0.2) b.vel.y = 0;
-        }
+      } else {               // ceiling
+        b.vel.y = (b.touchL || b.touchR) ? 0 : -vy * (b.bounce ?? CEIL);
+        if (Math.abs(b.vel.y) < 0.2) b.vel.y = 0;
         b.grounded = false;
       }
     } else {
@@ -94,11 +83,7 @@ export const applyPhysics = (
     }
   }
 
-  // ---- POST: optional slow slide while clinging ----
-  if ((b.touchL || b.touchR) && b.cling){
-    const cap = b.clingSlide ?? 0.25;
-    if (b.vel.y > cap) b.vel.y = cap;
-  }
+
 };
 
 const collides = (b:PhysicsBody, ctx:CanvasRenderingContext2D, m:TileMapLike, topAligned:boolean):boolean => {

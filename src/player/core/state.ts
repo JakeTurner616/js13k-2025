@@ -12,41 +12,58 @@ export const ST = { G:0, F:1, C:2 } as const;
 
 export type CoreInput = { left:boolean; right:boolean; jump:boolean };
 
+const setAnim = (p:any, n:number, name:"idle"|"dash"|"jump"|"fall"|"ledge")=>{
+  p.anim = n;
+  p.setAnimation?.(name);
+};
+
 /** State enter */
 export const S = (p:any, n:number, useAim?:boolean)=>{
   const b=p.body; p.st=n; p.aiming=false;
 
   if (n===ST.G){
-    p.detach=0; b.gravity=undefined;
-    p.anim = Math.abs(b.vel.x)>0.05 ? A.dash : A.idle; // dash only if sliding from physics
+    p.detach=0;
+    b.gravity=undefined;
+    b.cling=false;                       // ← not clinging on ground
+    // dash only if residual slide from physics
+    const dash = Math.abs(b.vel.x)>0.05;
+    setAnim(p, dash ? A.dash : A.idle, dash ? "dash" : "idle");
     return;
   }
 
   if (n===ST.C){
-    p.detach=0; b.grounded=false; b.gravity=0; b.vel.x=0; b.vel.y=0;
-    p.anim=A.ledge;
+    p.detach=0;
+    b.grounded=false;
+    b.gravity=0;
+    b.cling=true;                        // ← latch
+    b.vel.x=0; b.vel.y=0;
+    setAnim(p, A.ledge, "ledge");
     p.clingSide = b.touchR? +1 : b.touchL? -1 : (p.clingSide||+1);
     return;
   }
 
   // ST.F (air)
   p.detach = useAim ? 2 : 0;
-  b.grounded=false; b.gravity=undefined;
+  b.grounded=false;
+  b.gravity=undefined;
+  b.cling=false;                         // ← airborne: not clinging
 
   if (useAim){
     const a=p.aimAngle, v=p.aimPower;
     b.vel.x= cos(a)*v; b.vel.y= -sin(a)*v;
-    p.anim=A.dash; p.aimPower=p.minPower;
+    setAnim(p, A.dash, "dash");
+    p.aimPower=p.minPower;
   } else {
-    p.anim = b.vel.y>0 ? A.fall : A.jump;
+    setAnim(p, b.vel.y>0 ? A.fall : A.jump, b.vel.y>0 ? "fall" : "jump");
   }
 };
 
 /** Hold jump to aim (keeps you anchored on a wall if touching). */
 export const aim = (p:any, i:CoreInput, onWall:boolean)=>{
   const b=p.body, wall=onWall||p.st===ST.C;
-  p.aiming=true; p.anim = wall ? A.ledge : A.idle;
-  if (wall){ b.gravity=0; b.vel.x=p.clingSide*0.6; b.vel.y=0; } // tiny push into wall to stay latched
+  p.aiming=true;
+  setAnim(p, wall ? A.ledge : A.idle, wall ? "ledge" : "idle");
+  if (wall){ b.gravity=0; b.vel.x=p.clingSide*0.6; b.vel.y=0; } // tiny push into wall
   else { b.vel.x=0; b.vel.y=0; }
 
   p.aimAngle = clamp(
@@ -61,14 +78,14 @@ const g = (p:any,i:CoreInput,onWall:boolean)=>{
   const b=p.body, m=Math.abs;
   (i.jump && (aim(p,i,onWall),1)) ||
   (!i.jump && p.wasJump && p.aiming && (S(p,ST.F,true),1)) ||
-  (p.anim = m(b.vel.x)>0.05 ? A.dash : A.idle); // animation follows residual slide only
+  setAnim(p, m(b.vel.x)>0.05 ? A.dash : A.idle, m(b.vel.x)>0.05 ? "dash" : "idle");
 };
 
 const c = (p:any,i:CoreInput)=>{
   const b=p.body; b.vel.x=p.clingSide*0.6; b.vel.y=0; b.gravity=0;
   (i.jump && (aim(p,i,true),1)) ||
   (!i.jump && p.wasJump && p.aiming && (S(p,ST.F,true),1)) ||
-  (p.aiming=false,1);
+  (p.aiming=false, setAnim(p, A.ledge, "ledge"), 1);
 };
 
 const f = (_p:any,_i:CoreInput)=>{};
@@ -82,12 +99,13 @@ export const postUpdate = (p:any)=>{
   if (p.detach>0) p.detach--;
 
   if (p.st===ST.F){
-    if (b.vel.y>0 && p.anim!==A.fall) p.anim=A.fall; // only if staying in F
+    if (b.vel.y>0 && p.anim!==A.fall) setAnim(p, A.fall, "fall"); // only if staying in F
     (b.grounded && (S(p,ST.G),1)) || (onWall && !p.detach && (S(p,ST.C),1));
     return;
   }
   if (p.st===ST.G){
     if (!b.grounded) S(p,ST.F,false);
+    else if (p.anim!==A.idle && Math.abs(b.vel.x)<=0.05) setAnim(p, A.idle, "idle");
     return;
   }
   // ST.C — stay clung while aiming; leave only when contact is truly gone.
