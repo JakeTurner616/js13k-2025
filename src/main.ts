@@ -4,8 +4,8 @@ import { createAnimator } from "./atlas/animationAtlas";
 import { setupInput } from "./engine/input/input";
 import { MenuScene } from "./engine/scenes/MenuScene";
 import { BackgroundScene } from "./engine/scenes/BackgroundScene";
-import { setScene, loop, setDrawHz } from "./engine/scenes/SceneManager";
-import { attachFPS } from "./engine/debug/FPS";
+import { setScene, loop } from "./engine/scenes/SceneManager";
+//import { attachFPS } from "./engine/debug/FPS";
 import { zzfx, zzfxM, playZzfxMSong } from "./engine/audio/SoundEngine";
 import { retro1Song } from "./music/retro1";
 import { start1 } from "./sfx/start";
@@ -15,8 +15,7 @@ const { ctx } = setupCanvas(WORLD.w, WORLD.h);
 setupInput();
 
 // Debug overlay + force 60 draw fps (setDrawHz(0) to remove cap)
-attachFPS(ctx);
-setDrawHz(60);
+//attachFPS(ctx);
 
 // scenes
 MenuScene.setCanvas(ctx);
