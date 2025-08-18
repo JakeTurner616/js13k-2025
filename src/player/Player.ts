@@ -8,9 +8,14 @@ import { AN } from "./core/anim";
 import { ST, preUpdate, postUpdate } from "./core/state";
 import { isBadAim, drawAimDots } from "./core/aim";
 import { resolveFacing } from "./core/facing";
+import { zzfx } from "../engine/audio/SoundEngine";
 
 const DBG = true;
 const log = (...a:any[]) => { if (DBG) console.log("[player]", ...a); };
+
+// SFX when a red-arc fling is attempted
+const BAD_AIM_SFX: Parameters<typeof zzfx> =
+  [7,,15,.1,.01,.04,,.45,,,,,,,,,,.91,.01,,332] as any;
 
 type State = 0|1|2; // ST.G/ST.F/ST.C widened so comparisons don’t get TS2367
 export type Player = ReturnType<typeof createPlayer>;
@@ -23,40 +28,86 @@ export function createPlayer(atlas: AtlasAnimator){
     grounded:false
   };
 
-  // core bag (minifier will shrink keys across modules)
   const p = {
     body, st: ST.G as State, anim: 0, facing: 1 as 1|-1,
     wasJump:false, aiming:false, clingSide:1,
     aimAngle: Math.PI*0.6, aimPower:3.5,
     minPower:2.0, maxPower:8.0, chargeRate:0.14, angleStep: 2*Math.PI/180,
-    _clingLock: 0
-  };
+    _clingLock: 0,
+    bad:false
+  } as any;
 
   function update(input: Partial<InputState>, ctx:CanvasRenderingContext2D){
     const i:InputState = { left:!!input.left, right:!!input.right, jump:!!input.jump };
+    const released = !i.jump && p.wasJump;
 
-    // state pre-step (reads inputs etc.)
+    // --- EARLY VETO: if release while arc is red → cancel fling and snap to cling
+    {
+      const isCling = p.st === ST.C;
+      const anchored = body.grounded || isCling;
+      if (p.aiming && anchored && released) {
+        const vx = cos(p.aimAngle)*p.aimPower;
+        const vy = -sin(p.aimAngle)*p.aimPower;
+        const onWall = !!(body.touchL || body.touchR) || isCling;
+        const bad = isBadAim(vx, vy, p.clingSide, onWall);
+
+        if (bad) {
+          // cancel fling completely
+          try { zzfx(...BAD_AIM_SFX); } catch {}
+          (p as any).setAnimation?.("ledge");
+          (p as any).setState?.("cling");
+
+          body.gravity = 0;
+          body.cling = true;
+          body.vel.x = 0;
+          if (body.vel.y < 0) body.vel.y = 0;
+
+          p._clingLock = 2;
+          p.aiming = false;
+          p.bad = true;
+          p.wasJump = false;  // consume release so fling never sees it
+
+          log("RED-ARC RELEASE → cling/ledge (vetoed fling)");
+        }
+      }
+    }
+
+    // === state pre-step
     preUpdate(p, i, !!(body.touchL || body.touchR));
 
-    // physics (populates touch flags + hitWall)
+    // physics
     applyPhysics(body, ctx);
 
-    // === INSTANT CLING on the exact tick of horizontal collision ===
+    // instant cling on wall hit
     if (!body.grounded && body.hitWall && p.st !== ST.C && p._clingLock === 0) {
       p.clingSide = body.hitWall > 0 ? +1 : -1;
-      (p as any).setState?.("cling");      // Cling.enter will set "ledge"
+      (p as any).setState?.("cling");
       body.gravity = 0;
       body.cling = true;
       body.vel.x = 0; body.vel.y = 0;
-      p._clingLock = 2;                    // debounce across substeps
+      p._clingLock = 2;
       log("FORCED CLING", "side", p.clingSide, "pos", body.pos.x|0, body.pos.y|0);
-      body.hitWall = 0;                    // consume trigger
+      body.hitWall = 0;
     }
 
-    // state post-step (runs current state's update)
+    // compute aim validity for UI
+    {
+      const isCling = p.st === ST.C;
+      const anchored = body.grounded || isCling;
+      if (p.aiming && anchored) {
+        const vx = cos(p.aimAngle)*p.aimPower;
+        const vy = -sin(p.aimAngle)*p.aimPower;
+        const onWall = !!(body.touchL || body.touchR);
+        p.bad = isBadAim(vx, vy, p.clingSide, isCling || onWall);
+      } else {
+        p.bad = false;
+      }
+    }
+
+    // state update
     postUpdate(p);
 
-    // Never force "fall" on the same tick as a wall hit/cling
+    // fall animation guard
     if (
       p.st === ST.F &&
       !body.grounded &&
@@ -69,11 +120,11 @@ export function createPlayer(atlas: AtlasAnimator){
       log("fall anim set vy", body.vel.y.toFixed(3));
     }
 
-    // facing uses aim angle when aiming+anchored; otherwise movement/velocity
-    const isCling = p.st === ST.C;
-    const anchored = body.grounded || isCling;
+    // facing resolution
+    const isCling2 = p.st === ST.C;
+    const anchored2 = body.grounded || isCling2;
     p.facing = resolveFacing(
-      p.facing, isCling, anchored, p.aiming, p.clingSide, p.aimAngle, body.vel.x, i.left, i.right
+      p.facing, isCling2, anchored2, p.aiming, p.clingSide, p.aimAngle, body.vel.x, i.left, i.right
     );
 
     if (p._clingLock > 0) p._clingLock--;
@@ -91,14 +142,15 @@ export function createPlayer(atlas: AtlasAnimator){
     atlas.drawFrame(ctx, name, frame, flip ? -body.pos.x - body.width : body.pos.x, body.pos.y);
     ctx.restore();
 
+    // draw aim arc
     const isCling = p.st === ST.C;
     const anchored = body.grounded || isCling;
-    if (p.aiming && anchored){
+    if (p.aiming && anchored) {
       const px = body.pos.x + body.width*.5, py = body.pos.y + body.height*.5;
-      const vx = cos(p.aimAngle)*p.aimPower,  vy = -sin(p.aimAngle)*p.aimPower;
+      const vx = cos(p.aimAngle)*p.aimPower, vy = -sin(p.aimAngle)*p.aimPower;
       const onWall = !!(body.touchL || body.touchR);
-      const bad = isBadAim(vx, vy, p.clingSide, isCling || onWall);
-      drawAimDots(ctx, px, py, vx, vy, bad);
+      const badNow = p.bad || isBadAim(vx, vy, p.clingSide, isCling || onWall);
+      drawAimDots(ctx, px, py, vx, vy, badNow);
     }
   }
 
