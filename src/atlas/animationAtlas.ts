@@ -7,9 +7,13 @@ function buildMetaFromFTP(json: any): AtlasMeta {
   const frames = json?.frames || {};
   for (const key in frames) {
     const f = frames[key];
-    const fr = f?.frame; if (!fr) continue;
+
+    // ✅ accept compact or verbose keys
+    const fr  = f?.frame ?? f?.f;
+    if (!fr) continue;
     const sss = f?.sss ?? f?.spriteSourceSize ?? { x: 0, y: 0, w: fr.w, h: fr.h };
     const src = f?.src ?? f?.sourceSize ?? { w: fr.w, h: fr.h };
+
     out[key] = {
       x: fr.x|0, y: fr.y|0, w: fr.w|0, h: fr.h|0,
       srcW: (src.w|0) || (fr.w|0),
