@@ -7,23 +7,45 @@ import { drawBuilding } from "../objects/drawBuilding";
 import { generateBuildingVariants } from "../init/initBuildingVariants";
 import type { BuildingVariant } from "../objects/types";
 
-type RowCfg = { min:number; max:number; sc:number; sp:number; gap:number; lift:number; bias:number; M:Map<number, BuildingVariant> };
+type RowInit = { min:number; max:number; sc:number; sp:number; gap:number; lift:number; bias:number };
+type RowCfg = RowInit & { M:Map<number, BuildingVariant> };
+
+type EnvOpts = {
+  /** Optional parallax rows override (menu can pass its own). */
+  rows?: RowInit[];
+  /** Vapor/backdrop tuning: oct, amp, freq, detail, color, seed */
+  vaporArgs?: [number, number, number, number, string, number?];
+};
+
+const DEFAULT_ROWS: Readonly<RowInit[]> = [
+  { min:80, max:250, sc:.60, sp:.08, gap:120, lift:30,  bias:.95 },
+  { min:70, max:200, sc:.82, sp:.15, gap:136, lift:42,  bias:1.05 }
+] as const;
 
 export class Environment {
   private vapor: Drawer | null = null;
-  private L: readonly RowCfg[] = [
-    { min:80, max:250, sc:.60, sp:.08, gap:120, lift:30,  bias:.95, M:new Map() },
-    { min:70, max:200, sc:.82, sp:.15, gap:136, lift:42,  bias:1.05, M:new Map() }
-  ] as const;
+  private rows: RowCfg[] = [];
+  private vaporArgs: Required<EnvOpts>["vaporArgs"];
 
-  start(){ this.vapor = createFractalBackdropLayer(7, .12, .62, 90, "#131824", 4); this.L.forEach(r=>r.M.clear()); }
+  constructor(opts:EnvOpts = {}){
+    const src = opts.rows ?? DEFAULT_ROWS;
+    this.rows = src.map(r => ({ ...r, M:new Map() }));
+    this.vaporArgs = (opts.vaporArgs ?? [7, .12, .62, 90, "#131824", 4]) as Required<EnvOpts>["vaporArgs"];
+  }
+
+  start(){
+    const [oct, amp, freq, detail, color, seed=4] = this.vaporArgs;
+    this.vapor = createFractalBackdropLayer(oct, amp, freq, detail, color, seed);
+    this.rows.forEach(r=>r.M.clear());
+  }
 
   draw(ctx:CanvasRenderingContext2D, time:number, bgX:number){
     const c = ctx, k = c.canvas, w = k.width, h = k.height;
 
-    // sky
+    // sky gradient
     const g = c.createLinearGradient(0,0,0,h);
-    [0,.4,.8,1].forEach((s,i)=>g.addColorStop(s, ["#090016","#250040","#1a1d2f","#0b0c12"][i]));
+    g.addColorStop(0,"#090016"); g.addColorStop(.4,"#250040");
+    g.addColorStop(.8,"#1a1d2f"); g.addColorStop(1,"#0b0c12");
     c.fillStyle = g; c.fillRect(0,0,w,h);
 
     // backdrops
@@ -47,9 +69,9 @@ export class Environment {
       c.restore();
     };
 
-    row(this.L[0]);
+    row(this.rows[0]);
     drawTerrainBehind(c, w, h, time, bgX);
-    row(this.L[1]);
+    row(this.rows[1]);
     drawTerrainFront(c, w, h, time, bgX);
   }
 }

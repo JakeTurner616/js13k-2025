@@ -84,18 +84,7 @@ export function createPortalManager(TILE:number){
       ctx.globalAlpha = 0.97;
       ctx.drawImage(scratch, -PW/2, -PH/2);
       ctx.restore();
-    } else {
-      // fallback: glowing ellipse
-      const rx = PW * 0.34, ry = PH * 0.45;
-      ctx.shadowBlur = 10;
-      ctx.shadowColor = tint;
-      ctx.strokeStyle = tint;
-      ctx.globalAlpha = 0.95;
-      ctx.lineWidth = 5;
-      ctx.beginPath(); ctx.ellipse(0, 0, rx, ry, 0, 0, Math.PI*2); ctx.stroke();
-      ctx.shadowBlur = 0;
-      ctx.globalAlpha = 1;
-    }
+    } 
 
     ctx.restore();
   }

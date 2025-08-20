@@ -60,7 +60,7 @@ const animations = [
   mkAnim("dash", 12),
   mkAnim("ledge", 6),
   mkAnim("death", 8),
-  mkAnim("portal", 8),     // optional; not used directly, but handy if needed
+  mkAnim("portal", 8),
 ].filter(Boolean) as AnimationConfig[];
 
 export function createAnimator(callback: (animator: AtlasAnimator) => void) {

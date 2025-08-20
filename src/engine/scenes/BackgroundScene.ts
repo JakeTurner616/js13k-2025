@@ -14,7 +14,7 @@ import { PortalSystem } from "./background/PortalSystem";
 const TILE = 16;
 let ctx:CanvasRenderingContext2D|null = null;
 
-let env = new Environment();
+let env = new Environment();            // defaults remain
 let portals = new PortalSystem();
 
 let player:Player|null = null;
