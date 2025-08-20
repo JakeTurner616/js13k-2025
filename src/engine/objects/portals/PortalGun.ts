@@ -1,192 +1,244 @@
 // src/engine/objects/portals/PortalGun.ts
-// Raycast to first solid face, derive normal+orientation, animate a tracer.
-// OOB is empty; if the ray exits after having entered once, we abort.
+// ------------------------------------------------------
+// Portal gun logic:
+// - Fires projectiles (raycast to solid tiles)
+// - Determines hit point and surface normal
+// - Spawns portals at valid collision faces
+// - Draws beam trails + projectile indicator
+// ------------------------------------------------------
 
 import type { GameMapLike, PortalKind } from "./Portals";
 import type { Ori } from "./PortalPlacement";
+
 import { mapOffsetY } from "../../renderer/Space";
 import { isSolidTileId } from "../../../player/Physics";
-import { zip } from "../../../sfx/zip";
-import { zzfx } from "../../audio/SoundEngine"; // ✅ import actual zzfx
+
+import { zip } from "../../../sfx/zip";              // portal shot sound
+import { zzfx } from "../../audio/SoundEngine";      // sound engine
+
+// ------------------ Types ------------------
 
 type Axis = "x" | "y";
+
+/** Active portal projectile (in-flight beam) */
 type Projectile = {
-  kind: PortalKind;
-  x:number; y:number; dx:number; dy:number; // normalized for tracer
-  hitX:number; hitY:number;
-  nx:number; ny:number; angle:number; o:Ori;
-  t:number; tHit:number; alive:boolean;
+  k: PortalKind;        // kind of portal (A or B)
+  x: number; y: number; // start position
+  dx: number; dy: number; // direction (normalized)
+
+  hx: number; hy: number; // hit point
+  nx: number; ny: number; // surface normal
+  a: number;             // angle for orientation
+  o: Ori;                // facing orientation
+
+  t: number;             // elapsed lifetime
+  th: number;            // total time until hit
+  alive: boolean;        // active flag
 };
 
+// Placement callback signature
 export type PlaceCb = (
-  kind: PortalKind,
-  x:number, y:number,
-  angle:number,
-  o:Ori,
-  hit?: { hitX:number; hitY:number; nx:number; ny:number }
-)=>void;
+  k: PortalKind,
+  x: number,
+  y: number,
+  a: number,
+  o: Ori,
+  h?: { hx: number; hy: number; nx: number; ny: number }
+) => void;
 
-const SPEED = 640;     // px/s (for tracer)
-const MAX_DIST = 2000; // px
-const EPS_T = 1e-7;
+// ------------------ Constants ------------------
 
-export function createPortalGun(TILE:number){
-  const projectiles: Projectile[] = [];
+const S = 640;       // speed scaling (px/sec)
+const MD = 2000;     // max ray distance (px)
 
-  type Hit = { axis:Axis; stepX:number; stepY:number; tHit:number; hitX:number; hitY:number };
+// ------------------ Factory ------------------
 
-  function raycast(
-    sx:number, sy:number, dx:number, dy:number,
-    map:GameMapLike, canvasH:number
-  ): Hit | null {
-    // Normalize ONCE; with |d|=1, DDA 't' is world distance. (No t*mag!)
+export function createPortalGun(T: number) {
+  // active projectiles
+  const p: Projectile[] = [];
+
+  // ------------------ Raycast ------------------
+  function rc(
+    sx: number, sy: number,
+    dx: number, dy: number,
+    m: GameMapLike, cH: number
+  ) {
+    // normalize direction
     const L = Math.hypot(dx, dy) || 1;
     dx /= L; dy /= L;
 
-    const offY = mapOffsetY(canvasH, map.height, TILE);
-    let ix = Math.floor(sx / TILE);
-    let iy = Math.floor((sy - offY) / TILE);
+    // tile Y offset (account for camera/map offset)
+    const oY = mapOffsetY(cH, m.height, T);
 
-    const inb = (tx:number,ty:number)=> tx>=0 && ty>=0 && tx<map.width && ty<map.height;
-    let entered = inb(ix, iy);
+    const toTileY = (wy: number) => Math.floor((wy - oY) / T);
 
-    const stepX = dx>0 ? 1 : dx<0 ? -1 : 0;
-    const stepY = dy>0 ? 1 : dy<0 ? -1 : 0;
+    // current tile coords
+    let tx = Math.floor(sx / T);
+    let ty = toTileY(sy);
 
-    const INF = 1e30;
-    const tDeltaX = stepX ? (TILE / Math.abs(dx)) : INF;
-    const tDeltaY = stepY ? (TILE / Math.abs(dy)) : INF;
+    // step direction per axis
+    const sX = dx > 0 ? 1 : dx < 0 ? -1 : 0;
+    const sY = dy > 0 ? 1 : dy < 0 ? -1 : 0;
 
-    const nextGX = stepX>0 ? (ix+1)*TILE : ix*TILE;
-    const nextGY = stepY>0 ? (offY+(iy+1)*TILE) : (offY+iy*TILE);
-    let tMaxX = stepX ? ((nextGX - sx) / dx) : INF;
-    let tMaxY = stepY ? ((nextGY - sy) / dy) : INF;
+    // avoid div/0 → use huge number
+    const I = 1e30;
 
-    const isSolid = (tx:number, ty:number)=>{
-      if (!inb(tx, ty)) return false; // OOB is empty
-      const id = (map.tiles as any)[ty*map.width + tx] as number;
-      return id>0 && isSolidTileId(id);
+    // step distance in tiles
+    const dX = sX ? T / Math.abs(dx) : I;
+    const dY = sY ? T / Math.abs(dy) : I;
+
+    // next boundary in world px
+    const nX = sX > 0 ? (tx + 1) * T : tx * T;
+    const nY = sY > 0 ? (oY + (ty + 1) * T) : (oY + ty * T);
+
+    // time to next boundary
+    let tmX = sX ? (nX - sx) / dx : I;
+    let tmY = sY ? (nY - sy) / dy : I;
+
+    // traveled distance
+    let tr = 0;
+
+    // helpers
+    const inb = (x: number, y: number) =>
+      x >= 0 && y >= 0 && x < m.width && y < m.height;
+
+    const sol = (x: number, y: number) => {
+      if (!inb(x, y)) return false;
+      const id = (m.tiles as any)[y * m.width + x] as number;
+      return id > 0 && isSolidTileId(id);
     };
 
-    for (let iter=0; iter<8192; iter++){
-      const tNext = Math.min(tMaxX, tMaxY);
-      if (tNext > MAX_DIST) return null;
-
-      // Corner tie: probe both neighbors; if both solid, choose dominant component
-      if (Math.abs(tMaxX - tMaxY) <= EPS_T){
-        const tB = tMaxX;
-        const ixV = ix + stepX;
-        const iyH = iy + stepY;
-
-        const vIn = inb(ixV, iy),  hIn = inb(ix, iyH);
-        const vSo = vIn && isSolid(ixV, iy);
-        const hSo = hIn && isSolid(ix, iyH);
-
-        if (vSo || hSo){
-          const axis:Axis = (vSo && hSo)
-            ? (Math.abs(dx) >= Math.abs(dy) ? "x" : "y")
-            : (vSo ? "x" : "y");
-          const hitX = sx + dx*tB, hitY = sy + dy*tB;
-          return { axis, stepX, stepY, tHit:tB, hitX, hitY };
+    // DDA stepping loop
+    while (tr <= MD) {
+      if (tmX < tmY) {
+        // step in X
+        tr = tmX; tx += sX; tmX += dX;
+        if (sol(tx, ty)) {
+          return { hx: sx + dx * tr, hy: sy + dy * tr, axis: "x" as Axis, stepX: sX, stepY: sY };
         }
-
-        ix = ixV; iy = iyH;
-        if (inb(ix, iy)) entered = true; else if (entered) return null;
-        tMaxX += tDeltaX; tMaxY += tDeltaY;
-        continue;
-      }
-
-      if (tMaxX < tMaxY){
-        const tB = tMaxX; ix += stepX;
-        if (inb(ix, iy)){
-          entered = true;
-          if (isSolid(ix, iy)){
-            const hitX = sx + dx*tB, hitY = sy + dy*tB;
-            return { axis:"x", stepX, stepY, tHit:tB, hitX, hitY };
-          }
-        } else if (entered) return null;
-        tMaxX += tDeltaX;
       } else {
-        const tB = tMaxY; iy += stepY;
-        if (inb(ix, iy)){
-          entered = true;
-          if (isSolid(ix, iy)){
-            const hitX = sx + dx*tB, hitY = sy + dy*tB;
-            return { axis:"y", stepX, stepY, tHit:tB, hitX, hitY };
-          }
-        } else if (entered) return null;
-        tMaxY += tDeltaY;
+        // step in Y
+        tr = tmY; ty += sY; tmY += dY;
+        if (sol(tx, ty)) {
+          return { hx: sx + dx * tr, hy: sy + dy * tr, axis: "y" as Axis, stepX: sX, stepY: sY };
+        }
       }
+      if (!inb(tx, ty)) return null;
     }
+
     return null;
   }
 
-  function orientationFrom(axis:Axis, stepX:number, stepY:number){
-    if (axis === "x"){
-      const nx = stepX>0 ? -1 : 1;
-      const o:Ori = nx<0 ? "L" : "R";
-      return { nx, ny:0, angle:0, o };
+  // ------------------ Orientation ------------------
+  function or(ax: Axis, sX: number, sY: number) {
+    if (ax === "x") {
+      const nx = sX > 0 ? -1 : 1;
+      const o: Ori = nx < 0 ? "L" : "R";
+      return { nx, ny: 0, a: 0, o };
     } else {
-      const ny = stepY>0 ? -1 : 1;
-      const o:Ori = ny<0 ? "U" : "D";
-      const angle = ny<0 ? Math.PI/2 : -Math.PI/2;
-      return { nx:0, ny, angle, o };
+      const ny = sY > 0 ? -1 : 1;
+      const o: Ori = ny < 0 ? "U" : "D";
+      return { nx: 0, ny, a: ny < 0 ? Math.PI / 2 : -Math.PI / 2, o };
     }
   }
 
-  function spawn(kind:PortalKind, sx:number, sy:number, dx:number, dy:number, map:GameMapLike, canvasH:number){
-    const rc = raycast(sx, sy, dx, dy, map, canvasH);
-    if (!rc) return;
+  // ------------------ Spawn ------------------
+  function sp(
+    k: PortalKind,
+    sx: number, sy: number,
+    dx: number, dy: number,
+    m: GameMapLike, cH: number
+  ) {
+    const r = rc(sx, sy, dx, dy, m, cH);
+    if (!r) return;
 
-    // 🔊 fire SFX when spawning a portal shot
+    // play "zip" sound
     zzfx?.(...(zip as unknown as number[]));
 
-    // normalized dir for tracer
+    // normalize direction
     const L = Math.hypot(dx, dy) || 1;
-    const ndx = dx / L, ndy = dy / L;
 
-    const { nx, ny, angle, o } = orientationFrom(rc.axis, rc.stepX, rc.stepY);
-    const tHit = Math.max(0, Math.min(rc.tHit, MAX_DIST)) / SPEED; // seconds for tracer
+    // get orientation from hit normal
+    const { nx, ny, a, o } = or(r.axis, r.stepX, r.stepY);
 
-    projectiles.push({
-      kind, x:sx, y:sy, dx:ndx, dy:ndy,
-      hitX:rc.hitX, hitY:rc.hitY, nx, ny, angle, o,
-      t:0, tHit, alive:true
+    // distance to hit
+    const d = Math.hypot(r.hx - sx, r.hy - sy);
+
+    // total travel time
+    const th = Math.min(d, MD) / S;
+
+    // push projectile
+    p.push({
+      k,
+      x: sx, y: sy,
+      dx: dx / L, dy: dy / L,
+      hx: r.hx, hy: r.hy,
+      nx, ny, a, o,
+      t: 0, th,
+      alive: true
     });
   }
 
-  // new-style update signature: update(dt, onPlace)
-  function update(dt:number, onPlace:PlaceCb){
-    for (let i=projectiles.length-1; i>=0; i--){
-      const p = projectiles[i];
-      if (!p.alive) { projectiles.splice(i,1); continue; }
-      p.t += dt;
-      if (p.t >= p.tHit){
-        onPlace(p.kind, p.hitX, p.hitY, p.angle, p.o, { hitX:p.hitX, hitY:p.hitY, nx:p.nx, ny:p.ny });
-        p.alive = false;
-        projectiles.splice(i,1);
+  // ------------------ Update ------------------
+  function up(dt: number, onP: PlaceCb) {
+    for (let i = p.length - 1; i >= 0; i--) {
+      const pr = p[i];
+
+      // advance timer
+      pr.t += dt;
+
+      // reached hit
+      if (pr.t >= pr.th) {
+        onP(pr.k, pr.hx, pr.hy, pr.a, pr.o, {
+          hx: pr.hx, hy: pr.hy, nx: pr.nx, ny: pr.ny
+        });
+        p.splice(i, 1);
       }
     }
   }
 
-  function draw(ctx:CanvasRenderingContext2D, _t:number){
+  // ------------------ Draw ------------------
+  function dr(ctx: CanvasRenderingContext2D, _t?: number) {
     ctx.save();
-    for (const p of projectiles){
-      const travel = Math.min(p.t, p.tHit) * SPEED;
-      const px = p.x + p.dx*travel, py = p.y + p.dy*travel;
-      const hx = p.hitX, hy = p.hitY;
-      const base = p.kind === "A" ? "40,140,255" : "255,160,40";
 
-      ctx.strokeStyle = `rgba(${base},0.35)`; ctx.lineWidth = 1;
-      ctx.beginPath(); ctx.moveTo(p.x, p.y); ctx.lineTo(hx, hy); ctx.stroke();
+    for (const pr of p) {
+      const tr = Math.min(pr.t, pr.th) * S;
 
-      ctx.strokeStyle = `rgba(${base},0.9)`; ctx.lineWidth = 2;
-      ctx.beginPath(); ctx.moveTo(p.x, p.y); ctx.lineTo(px, py); ctx.stroke();
+      const px = pr.x + pr.dx * tr;
+      const py = pr.y + pr.dy * tr;
 
-      ctx.fillStyle = "#fff"; ctx.beginPath(); ctx.arc(px, py, 2.5, 0, Math.PI*2); ctx.fill();
+      const b = pr.k === "A" ? "40,140,255" : "255,160,40";
+
+      // faint full ray (to wall)
+      ctx.strokeStyle = `rgba(${b},0.35)`;
+      ctx.lineWidth = 1;
+      ctx.beginPath();
+      ctx.moveTo(pr.x, pr.y);
+      ctx.lineTo(pr.hx, pr.hy);
+      ctx.stroke();
+
+      // bright beam (projectile tail)
+      ctx.strokeStyle = `rgba(${b},0.9)`;
+      ctx.lineWidth = 2;
+      ctx.beginPath();
+      ctx.moveTo(pr.x, pr.y);
+      ctx.lineTo(px, py);
+      ctx.stroke();
+
+      // tip (small glowing dot)
+      ctx.fillStyle = "#fff";
+      ctx.beginPath();
+      ctx.arc(px, py, 2.5, 0, Math.PI * 2);
+      ctx.fill();
     }
+
     ctx.restore();
   }
 
-  return { spawn, update, draw };
+  // ------------------ Public API ------------------
+  return {
+    spawn: sp,
+    update: up,
+    draw: dr
+  };
 }

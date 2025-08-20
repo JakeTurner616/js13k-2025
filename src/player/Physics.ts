@@ -1,5 +1,6 @@
 // src/player/Physics.ts
 import { getCurrentMap } from "../engine/renderer/MapContext";
+import { WORLD_G } from "./core/math";
 
 export type Vec2 = { x:number; y:number };
 
@@ -25,7 +26,7 @@ export interface PhysicsBody {
 
 export interface TileMapLike { width:number; height:number; tiles:number[]|Uint32Array; }
 
-const G = 0.14, S = 16;
+const G = WORLD_G, S = 16;
 const AIR = 0.002, GFRIC = 0.08;
 const CEIL = 0.25;
 

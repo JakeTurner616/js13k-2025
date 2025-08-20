@@ -1,10 +1,11 @@
 // src/engine/scenes/init/initBuildingVariants.ts
 import type { BuildingVariant } from "../objects/types";
+import { clamp } from "../../../player/core/math";
 
 const R=Math.random,
 ri=(a:number,b:number)=>Math.floor(a+R()*(b-a+1)),
 chance=(p:number)=>R()<p,
-clamp=(n:number,lo:number,hi:number)=>n<lo?lo:n>hi?hi:n,
+
 hsl=(h:number,s:number,l:number)=>`hsl(${h},${s}%,${l}%)`,
 jitter=(n:number,j:number)=>n+ri(-j,j);
 

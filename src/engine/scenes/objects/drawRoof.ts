@@ -1,8 +1,7 @@
 // src/engine/scenes/objects/drawRoof.ts
 import { drawAntenna } from "./drawAntenna";
 import type { BuildingVariant } from "./types";
-
-const clamp = (n: number, lo: number, hi: number) => (n < lo ? lo : n > hi ? hi : n);
+import { clamp } from "../../../player/core/math";
 
 const poly = (c: CanvasRenderingContext2D, fill: string, pts: [number, number][]) => {
   c.fillStyle = fill;
