@@ -18,7 +18,8 @@ export interface PhysicsBody {
   cling?: boolean;
   clingSlide?: number;
 
-  // Kept for compatibility; not used by the simplified solver.
+  // Used by FSM to detect a *new* horizontal wall impact this tick:
+  // -1 = left wall, +1 = right wall, 0 = none.
   hitWall?: number;
 }
 
@@ -62,6 +63,10 @@ export const applyPhysics = (
     if (collides(b, ctx, m, topAligned)) {
       b.pos.x -= vx;
       (vx > 0 ? (b.touchR = true) : (b.touchL = true));
+
+      // *** KEY: stamp which wall we *actively hit* BEFORE zeroing velocity
+      b.hitWall = vx > 0 ? +1 : -1;
+
       b.vel.x = 0;
       b.vel.y = 0;      // glue stops vertical motion on same tick as wall catch
       b.grounded = false;

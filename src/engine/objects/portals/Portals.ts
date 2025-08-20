@@ -7,6 +7,10 @@ import type { Ori } from "./PortalPlacement";
 export type GameMapLike = { width:number; height:number; tiles: Uint32Array | number[] };
 export type PortalKind = "A" | "B";
 
+// Export sizes for overlap checks
+export const PORTAL_W = 2 * 16; // default; real display uses TILE passed at manager creation
+export const PORTAL_H = 2 * 16;
+
 type Portal = { kind: PortalKind; x:number; y:number; angle:number; o:Ori };
 
 export function createPortalManager(TILE: number) {
@@ -15,8 +19,8 @@ export function createPortalManager(TILE: number) {
   let portalMeta: any | null = null;
   let portalCfg: { fps:number; frameCount:number } | null = null;
 
-  const PORTAL_W = 2 * TILE;
-  const PORTAL_H = 2 * TILE;
+  const PW = 2 * TILE;
+  const PH = 2 * TILE;
 
   // offscreen scratch for tinting only sprite pixels
   const scratch = (() => {
@@ -57,11 +61,14 @@ export function createPortalManager(TILE: number) {
 
   // Legacy tile API (maps to world center)
   function replace(kind: PortalKind, gx:number, gy:number, o:Ori) {
-    const x = gx * TILE + PORTAL_W * 0.5;
-    const y = gy * TILE + PORTAL_H * 0.5;
+    const x = gx * TILE + PW * 0.5;
+    const y = gy * TILE + PH * 0.5;
     const angle = (o === "U") ? Math.PI/2 : (o === "D") ? -Math.PI/2 : 0;
     replaceWorld(kind, x, y, angle, o);
   }
+
+  // New: expose the active slots for tiny teleport logic
+  function getSlots(){ return { A: slots.A, B: slots.B }; }
 
   // Tint + mask; returns offscreen with the final portal pixels.
   function drawTintedPortalToScratch(
@@ -131,8 +138,8 @@ export function createPortalManager(TILE: number) {
         const sy = (m.y + (sy0U - m.offY)) | 0;
 
         // scale to our displayed frame size
-        const scaleX = PORTAL_W / FW;
-        const scaleY = PORTAL_H / FH;
+        const scaleX = PW / FW;
+        const scaleY = PH / FH;
 
         const ddx = ((sx0U - f0x) * scaleX) | 0;
         const ddy = ((sy0U - f0y) * scaleY) | 0;
@@ -141,14 +148,14 @@ export function createPortalManager(TILE: number) {
 
         drawTintedPortalToScratch(
           img, sx, sy, sw, sh,
-          PORTAL_W, PORTAL_H, ddx, ddy, dw, dh,
+          PW, PH, ddx, ddy, dw, dh,
           base
         );
 
         // blit to world (slightly more opaque)
         ctx.globalCompositeOperation = "source-over";
         ctx.globalAlpha = 0.97;      // ↑ less transparent overall
-        ctx.drawImage(scratch.canvas, -PORTAL_W/2, -PORTAL_H/2);
+        ctx.drawImage(scratch.canvas, -PW/2, -PH/2);
 
         // reset
         ctx.globalAlpha = 1;
@@ -156,7 +163,7 @@ export function createPortalManager(TILE: number) {
       }
     } else {
       // fallback: simple ring (kept solid-ish)
-      const rx = (PORTAL_W * 0.34), ry = (PORTAL_H * 0.45);
+      const rx = (PW * 0.34), ry = (PH * 0.45);
       ctx.shadowBlur = 10;
       ctx.shadowColor = base;
       ctx.strokeStyle = base;
@@ -175,5 +182,5 @@ export function createPortalManager(TILE: number) {
     if (slots.B) drawOne(ctx, slots.B, t);
   }
 
-  return { setAnimator, replaceWorld, replace, clear, draw };
+  return { setAnimator, replaceWorld, replace, clear, draw, getSlots };
 }

@@ -4,6 +4,8 @@
 // - NO WALK: L/R never translate. They only steer aim while holding jump.
 // - Instant cling: on wall touch in F (and not detached) → snap to C.
 // - Detach grace only on real flings (useAim=true) to prevent re-cling flicker.
+// - p.noCling > 0 disables all cling behavior (used after portal exits).
+// - NEW: Never enter cling (or wall-anchor while aiming) if p.touchPortal is true.
 
 import { clamp, cos, sin, PI } from "./math";
 import { A } from "./anim";
@@ -24,8 +26,7 @@ export const S = (p:any, n:number, useAim?:boolean)=>{
   if (n===ST.G){
     p.detach=0;
     b.gravity=undefined;
-    b.cling=false;                       // ← not clinging on ground
-    // dash only if residual slide from physics
+    b.cling=false;
     const dash = Math.abs(b.vel.x)>0.05;
     setAnim(p, dash ? A.dash : A.idle, dash ? "dash" : "idle");
     return;
@@ -35,9 +36,9 @@ export const S = (p:any, n:number, useAim?:boolean)=>{
     p.detach=0;
     b.grounded=false;
     b.gravity=0;
-    b.cling=true;                        // ← latch
-    b.vel.x=0; b.vel.y=0;
-    setAnim(p, A.ledge, "ledge");
+    b.cling=true;
+    b.vel.x=0; b.vel.y=0;             // freeze momentum on enter
+    setAnim(p, A.ledge, "ledge");     // correct cling animation
     p.clingSide = b.touchR? +1 : b.touchL? -1 : (p.clingSide||+1);
     return;
   }
@@ -46,7 +47,7 @@ export const S = (p:any, n:number, useAim?:boolean)=>{
   p.detach = useAim ? 2 : 0;
   b.grounded=false;
   b.gravity=undefined;
-  b.cling=false;                         // ← airborne: not clinging
+  b.cling=false;
 
   if (useAim){
     const a=p.aimAngle, v=p.aimPower;
@@ -60,10 +61,13 @@ export const S = (p:any, n:number, useAim?:boolean)=>{
 
 /** Hold jump to aim (keeps you anchored on a wall if touching). */
 export const aim = (p:any, i:CoreInput, onWall:boolean)=>{
-  const b=p.body, wall=onWall||p.st===ST.C;
+  const b=p.body;
+  // wall anchor disabled during noCling OR while inside a portal footprint
+  const canWallAnchor = !p.noCling && !p.touchPortal && (onWall || p.st===ST.C);
+
   p.aiming=true;
-  setAnim(p, wall ? A.ledge : A.idle, wall ? "ledge" : "idle");
-  if (wall){ b.gravity=0; b.vel.x=p.clingSide*0.6; b.vel.y=0; } // tiny push into wall
+  setAnim(p, canWallAnchor ? A.ledge : A.idle, canWallAnchor ? "ledge" : "idle");
+  if (canWallAnchor){ b.gravity=0; b.vel.x=p.clingSide*0.6; b.vel.y=0; }
   else { b.vel.x=0; b.vel.y=0; }
 
   p.aimAngle = clamp(
@@ -96,11 +100,18 @@ export const preUpdate = (p:any,i:CoreInput,onWall:boolean)=>
 /** Post-physics transitions with tiny detach grace. */
 export const postUpdate = (p:any)=>{
   const b=p.body, onWall=!!(b.touchL||b.touchR);
+
+  // decrement anti-cling window
+  if (p.noCling>0) p.noCling--;
   if (p.detach>0) p.detach--;
 
   if (p.st===ST.F){
-    if (b.vel.y>0 && p.anim!==A.fall) setAnim(p, A.fall, "fall"); // only if staying in F
-    (b.grounded && (S(p,ST.G),1)) || (onWall && !p.detach && (S(p,ST.C),1));
+    if (b.vel.y>0 && p.anim!==A.fall) setAnim(p, A.fall, "fall");
+
+    // Enter Ground OR (enter Cling only if: we moved INTO a wall this tick,
+    // not currently overlapping a portal, and cling is not blocked)
+    (b.grounded && (S(p,ST.G),1)) ||
+    (onWall && !p.detach && !p.noCling && !p.touchPortal && (b.hitWall|0)!==0 && (S(p,ST.C),1));
     return;
   }
   if (p.st===ST.G){

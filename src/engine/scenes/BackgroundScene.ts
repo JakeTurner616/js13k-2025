@@ -24,7 +24,7 @@ import { updateSmoothCamera, type Cam } from "../camera/Camera";
 import type { BuildingVariant } from "./objects/types";
 
 // NEW: portals
-import { createPortalManager, type PortalKind } from "../objects/portals/Portals";
+import { createPortalManager, type PortalKind, PORTAL_W, PORTAL_H } from "../objects/portals/Portals";
 import { createPortalGun } from "../objects/portals/PortalGun";
 import type { Ori } from "../objects/portals/PortalPlacement";
 
@@ -48,13 +48,36 @@ const L = [
 // --- Helper: screen -> canvas px -> world px (zoom/devicePixelRatio safe) ---
 function screenToWorld(clientX:number, clientY:number, c:HTMLCanvasElement, cam:Cam){
   const r = c.getBoundingClientRect();
-  // convert screen to canvas pixel coords (account CSS scaling / zoom)
   const cx = (clientX - r.left) * (c.width  / r.width);
   const cy = (clientY - r.top ) * (c.height / r.height);
-  // then canvas -> world using the same translate as draw()
   const wx = cx + (cam.x - c.width  * 0.5);
   const wy = cy + (cam.y - c.height * 0.5);
   return { wx, wy };
+}
+
+// --- Tiny math helpers for portal frame transforms ---
+function toBasis(vx:number, vy:number, o:Ori){
+  if (o === "R") return { n:  vx, t:  vy };  // n=+X, t=+Y
+  if (o === "L") return { n: -vx, t:  vy };  // n=-X, t=+Y
+  if (o === "U") return { n: -vy, t:  vx };  // n=-Y, t=+X
+  /* o === "D" */ return { n:  vy, t:  vx }; // n=+Y, t=+X
+}
+function fromBasis(n:number, t:number, o:Ori){
+  if (o === "R") return { vx:  n, vy:  t };
+  if (o === "L") return { vx: -n, vy:  t };
+  if (o === "U") return { vx:  t, vy: -n };
+  /* o === "D" */ return { vx:  t, vy:  n };
+}
+function pushOutAlong(o:Ori, amount:number){
+  if (o === "R") return { dx: amount, dy: 0 };
+  if (o === "L") return { dx:-amount, dy: 0 };
+  if (o === "U") return { dx: 0, dy:-amount };
+  /* o === "D" */ return { dx: 0, dy: amount };
+}
+// NEW: push out by *hitbox half-extent* along the portal normal (+ small pad)
+function pushOutByHitbox(o:Ori, halfW:number, halfH:number, pad=2){
+  if (o === "R" || o === "L") return pushOutAlong(o, halfW + pad);
+  return pushOutAlong(o, halfH + pad);
 }
 
 export const BackgroundScene = {
@@ -68,7 +91,6 @@ export const BackgroundScene = {
     createAnimator(a => {
       player = createPlayer(a);
       if (ctx) player.body.pos = { x:64, y:24 };
-      // give portal renderer access to atlas (for portal sprite)
       portals.setAnimator(a);
     });
 
@@ -79,10 +101,7 @@ export const BackgroundScene = {
       c.addEventListener("mousedown", (e)=>{
         const map = getCurrentMap(); if (!map) return;
 
-        // --- screen → world (DPR / zoom aware) ---
         const { wx, wy } = screenToWorld(e.clientX, e.clientY, c, cam);
-
-        // shoot from player center toward world-mouse
         const px = player ? (player.body.pos.x + player.body.width*0.5) : wx;
         const py = player ? (player.body.pos.y + player.body.height*0.5) : wy;
         const dx = wx - px, dy = wy - py;
@@ -102,10 +121,89 @@ export const BackgroundScene = {
     player?.update(inp, c);
 
     // portals: advance projectiles; place portals in world-space when they hit
-    const dt = 1/60; // fixed tick like the rest of the scene
+    const dt = 1/60;
     portalGun.update(dt, (kind: PortalKind, x: number, y: number, angle: number, o: Ori) => {
       portals.replaceWorld(kind, x, y, angle, o);
     });
+
+    // --- Tiny teleport check (no colliders) ---
+    if (player) {
+      const P = portals.getSlots(); // {A?,B?}
+      if (P.A && P.B) {
+        // player center
+        const cx = player.body.pos.x + (player.body.width  * 0.5);
+        const cy = player.body.pos.y + (player.body.height * 0.5);
+
+        // current inside mask (bit0=A, bit1=B)
+        const b:any = player.body as any;
+        const oldMask = b.pMask | 0;
+
+        // hitbox half extents
+        const hw = ((player.body.hit?.w ?? player.body.width)  * 0.5) | 0;
+        const hh = ((player.body.hit?.h ?? player.body.height) * 0.5) | 0;
+
+        // local AABB test; extend along portal normal by half extents
+        const insideBit = (p:{x:number;y:number;angle:number;o:Ori}, bit:number)=>{
+          const dx = cx - p.x, dy = cy - p.y;
+          const ca = Math.cos(-p.angle), sa = Math.sin(-p.angle);
+          const lx = dx*ca - dy*sa, ly = dx*sa + dy*ca; // portal-local
+          const rx = PORTAL_W * 0.40, ry = PORTAL_H * 0.46;
+
+          if (p.o === "R" || p.o === "L") {
+            const rxN = rx + hw;
+            return (Math.abs(lx) <= rxN && Math.abs(ly) <= ry) ? bit : 0;
+          } else {
+            const ryN = ry + hh;
+            return (Math.abs(lx) <= rx && Math.abs(ly) <= ryN) ? bit : 0;
+          }
+        };
+
+        const inA = insideBit(P.A as any, 1);
+        const inB = insideBit(P.B as any, 2);
+        const newMask = inA | inB;
+
+        const enterA = (inA && !(oldMask & 1));
+        const enterB = (inB && !(oldMask & 2));
+
+        if (enterA || enterB) {
+          const enter = enterA ? P.A! : P.B!;
+          const exit  = enterA ? P.B! : P.A!;
+
+          // velocity mapping: flip normal so we come OUT of the exit
+          const lv = toBasis(player.body.vel.x, player.body.vel.y, enter.o);
+          const re = fromBasis(-lv.n, lv.t, exit.o);
+
+          // move center beyond exit plane by half hitbox (no clipping)
+          const kick = pushOutByHitbox(exit.o, hw, hh, /*pad=*/2);
+          const px = exit.x + kick.dx, py = exit.y + kick.dy;
+          const ddx = px - (player.body.pos.x + player.body.width*0.5);
+          const ddy = py - (player.body.pos.y + player.body.height*0.5);
+          player.body.pos.x += ddx; player.body.pos.y += ddy;
+
+          // apply velocity (no speed loss / no artificial boost)
+          player.body.vel.x = re.vx;
+          player.body.vel.y = re.vy;
+
+          // clear contacts so next physics step doesn’t glue or eat speed
+          player.body.grounded = false;
+          player.body.touchL = false;
+          player.body.touchR = false;
+          player.body.hitWall = 0;
+
+          // prevent immediate re-trigger on exit this frame
+          b.pMask = 3;
+
+          // tell the player it's overlapping a portal for a few frames
+          (player as any).setTouchingPortal?.(true, 3);
+        } else {
+          b.pMask = newMask;
+          (player as any).setTouchingPortal?.(newMask !== 0, 2);
+        }
+      } else {
+        (player as any).setTouchingPortal?.(false);
+        (player.body as any).pMask = 0;
+      }
+    }
 
     const px = player ? player.body.pos.x : bgX + ((+!!inp.right) - (+!!inp.left)) * 2;
     bgX += (px - bgX) * 0.18;
@@ -146,7 +244,7 @@ export const BackgroundScene = {
       for (let i=si; i<ei; i++){
         if (!M.has(i)) M.set(i, generateBuildingVariants(1, min, max, hmul)[0]);
         const v = M.get(i)!;
-        const by = (h - v.h - 20 + (v as any).groundOffset + 30 + lift) / sc; // groundOffset added by generator
+        const by = (h - v.h - 20 + (v as any).groundOffset + 30 + lift) / sc;
         drawBuilding(c, i*gap - lx, by, v, time);
       }
       c.restore();

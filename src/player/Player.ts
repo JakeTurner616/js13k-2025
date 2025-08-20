@@ -24,7 +24,8 @@ export function createPlayer(atlas: AtlasAnimator){
   const body: PhysicsBody = {
     pos:{x:32,y:32}, vel:{x:0,y:0},
     width:32, height:32,
-    hit:{x:8,y:6,w:16,h:24},
+    // tightened hitbox (smaller margins for more accurate contact/portals)
+    hit:{x:9,y:8,w:14,h:20},
     grounded:false
   };
 
@@ -33,12 +34,26 @@ export function createPlayer(atlas: AtlasAnimator){
     wasJump:false, aiming:false, clingSide:1,
     aimAngle: Math.PI*0.6, aimPower:3.5,
     minPower:2.0, maxPower:8.0, chargeRate:0.14, angleStep: 2*Math.PI/180,
-    bad:false
+    bad:false,
+    detach: 0,
+    noCling: 0,                 // frames to block *entering* cling (e.g., after teleport)
+    portalContact: 0,           // countdown: frames of portal overlap
+    touchPortal: false,         // derived each frame from portalContact
+    setAnimation: undefined as undefined | ((name:"idle"|"dash"|"jump"|"fall"|"ledge")=>void)
   } as any;
+
+  // External helpers (call from portal/teleport system)
+  function setTouchingPortal(active:boolean, frames=2){
+    p.portalContact = active ? Math.max(frames|0, 1) : 0;
+  }
 
   function update(input: Partial<InputState>, ctx:CanvasRenderingContext2D){
     const i:InputState = { left:!!input.left, right:!!input.right, jump:!!input.jump };
     const released = !i.jump && p.wasJump;
+
+    // Decay & derive portal contact flag
+    if (p.portalContact>0) p.portalContact--;
+    p.touchPortal = p.portalContact>0;
 
     // 1) early veto: if releasing while red (based on last frame contacts), eat release (no queue)
     if (p.aiming && (body.grounded || p.st === ST.C) && released) {
@@ -58,8 +73,6 @@ export function createPlayer(atlas: AtlasAnimator){
 
     // 3) physics (populates touch flags + hitWall)
     applyPhysics(body, ctx);
-
-
 
     // 5) compute aim “bad” flag for UI (use current frame contacts)
     {
@@ -108,5 +121,21 @@ export function createPlayer(atlas: AtlasAnimator){
     }
   }
 
-  return { body, update, draw };
+  // Called after a teleport: block only *entering* cling briefly and mark portal overlap.
+  function onTeleported(_exitO:"R"|"L"|"U"|"D"){
+    body.grounded = false;
+    body.touchL = false;
+    body.touchR = false;
+    body.gravity = undefined;
+    body.cling = false;
+    p.aiming = false;
+
+    p.detach = 4;           // prevents ST.F → ST.C snap for a couple frames
+    p.noCling = 8;          // do not ENTER cling briefly (doesn't affect existing C)
+    setTouchingPortal(true, 3); // treat as overlapping portal right after exit
+
+    p.st = ST.F as State;
+  }
+
+  return { body, update, draw, onTeleported, setTouchingPortal };
 }
