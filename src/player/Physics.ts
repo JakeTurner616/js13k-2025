@@ -31,6 +31,9 @@ const CEIL = 0.25;
 const solid = new Set<number>();
 export const setSolidTiles = (ids:number[]) => { solid.clear(); for (let i of ids) solid.add(i); };
 
+// ✅ expose a single source of truth for “solid”
+export const isSolidTileId = (id:number) => solid.has(id);
+
 export const applyPhysics = (
   b:PhysicsBody,
   ctx:CanvasRenderingContext2D,
@@ -82,8 +85,6 @@ export const applyPhysics = (
       b.grounded = false;
     }
   }
-
-
 };
 
 const collides = (b:PhysicsBody, ctx:CanvasRenderingContext2D, m:TileMapLike, topAligned:boolean):boolean => {

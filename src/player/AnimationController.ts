@@ -7,7 +7,8 @@ export type AnimationName =
   | "jump"
   | "fall"
   | "ledge"
-  | "death";
+  | "death"
+  | "portal"; // ⬅ NEW
 
 export class AnimationController {
   private current: AnimationName = "idle";

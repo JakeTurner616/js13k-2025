@@ -72,10 +72,34 @@
         "y": 0.5
       }
     },
-    "6_Alternative_Colour_Cat_Dash-Sheet": {
+    "portals-Sheet": {
       "frame": {
         "x": 0,
         "y": 62,
+        "w": 233,
+        "h": 22
+      },
+      "rotated": false,
+      "trimmed": true,
+      "spriteSourceSize": {
+        "x": 9,
+        "y": 6,
+        "w": 233,
+        "h": 22
+      },
+      "sourceSize": {
+        "w": 256,
+        "h": 32
+      },
+      "pivot": {
+        "x": 0.5,
+        "y": 0.5
+      }
+    },
+    "6_Alternative_Colour_Cat_Dash-Sheet": {
+      "frame": {
+        "x": 0,
+        "y": 84,
         "w": 110,
         "h": 16
       },
@@ -99,7 +123,7 @@
     "3_Alternative_Colour_Cat_Jump-Sheet": {
       "frame": {
         "x": 0,
-        "y": 78,
+        "y": 100,
         "w": 107,
         "h": 17
       },
@@ -123,7 +147,7 @@
     "4_Alternative_Colour_Cat_Fall-Sheet": {
       "frame": {
         "x": 110,
-        "y": 62,
+        "y": 84,
         "w": 107,
         "h": 18
       },
@@ -152,7 +176,7 @@
     "format": "RGBA8888",
     "size": {
       "w": 245,
-      "h": 95
+      "h": 117
     },
     "scale": 1
   }
