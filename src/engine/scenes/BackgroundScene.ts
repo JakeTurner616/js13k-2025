@@ -1,8 +1,5 @@
 // src/engine/scenes/BackgroundScene.ts
-// Tiny, readable, and Terser-friendly scene:
-// - FAR/MID building rows unified
-// - minimal locals, short keys, compact loops
-// - no behavior changes (stars/moon/vapor/clounds/haze/terrain/camera/map/player)
+// Compact, human-friendly scene with portals.
 
 import { drawStars } from "./effects/Stars";
 import { drawClouds } from "./effects/Clouds";
@@ -12,9 +9,7 @@ import { drawMoon } from "./effects/Moon";
 import { drawBuilding } from "./objects/drawBuilding";
 import { getInputState } from "../input/input";
 import { generateBuildingVariants } from "./init/initBuildingVariants";
-import {
-  drawTerrainBehind, drawTerrainFront, createFractalBackdropLayer, type Drawer
-} from "./effects/terrain/Terrain";
+import { drawTerrainBehind, drawTerrainFront, createFractalBackdropLayer, type Drawer } from "./effects/terrain/Terrain";
 
 import { drawMapAndColliders } from "../renderer/render";
 import { loadLevel1, getCurrentMap } from "../renderer/level-loader";
@@ -23,10 +18,14 @@ import { createPlayer, type Player } from "../../player/Player";
 import { updateSmoothCamera, type Cam } from "../camera/Camera";
 import type { BuildingVariant } from "./objects/types";
 
-// NEW: portals
+// portals
 import { createPortalManager, type PortalKind, PORTAL_W, PORTAL_H } from "../objects/portals/Portals";
 import { createPortalGun } from "../objects/portals/PortalGun";
 import type { Ori } from "../objects/portals/PortalPlacement";
+
+// SFX
+import { port } from "../../sfx/port";
+import { zzfx } from "../audio/SoundEngine"; // ✅ import actual zzfx
 
 const TILE = 16;
 let ctx:CanvasRenderingContext2D|null = null;
@@ -35,50 +34,32 @@ let player:Player|null = null;
 let cam:Cam = { x:0, y:0 };
 let bgX = 0;
 
-// NEW: portal systems (world-space)
 const portals = createPortalManager(TILE);
 const portalGun = createPortalGun(TILE);
 
-// Layer cfg (short keys to help minifiers):
+// layer config (names kept tiny for terser)
 const L = [
   { min:80, max:250, sc:.60, sp:.08, gap:120, lift:30,  bias:.95, M:new Map<number, BuildingVariant>() },
   { min:70, max:200, sc:.82, sp:.15, gap:136, lift:42,  bias:1.05, M:new Map<number, BuildingVariant>() }
 ] as const;
 
-// --- Helper: screen -> canvas px -> world px (zoom/devicePixelRatio safe) ---
-function screenToWorld(clientX:number, clientY:number, c:HTMLCanvasElement, cam:Cam){
-  const r = c.getBoundingClientRect();
-  const cx = (clientX - r.left) * (c.width  / r.width);
-  const cy = (clientY - r.top ) * (c.height / r.height);
-  const wx = cx + (cam.x - c.width  * 0.5);
-  const wy = cy + (cam.y - c.height * 0.5);
-  return { wx, wy };
-}
-
-// --- Tiny math helpers for portal frame transforms ---
-function toBasis(vx:number, vy:number, o:Ori){
-  if (o === "R") return { n:  vx, t:  vy };  // n=+X, t=+Y
-  if (o === "L") return { n: -vx, t:  vy };  // n=-X, t=+Y
-  if (o === "U") return { n: -vy, t:  vx };  // n=-Y, t=+X
-  /* o === "D" */ return { n:  vy, t:  vx }; // n=+Y, t=+X
-}
-function fromBasis(n:number, t:number, o:Ori){
-  if (o === "R") return { vx:  n, vy:  t };
-  if (o === "L") return { vx: -n, vy:  t };
-  if (o === "U") return { vx:  t, vy: -n };
-  /* o === "D" */ return { vx:  t, vy:  n };
-}
-function pushOutAlong(o:Ori, amount:number){
-  if (o === "R") return { dx: amount, dy: 0 };
-  if (o === "L") return { dx:-amount, dy: 0 };
-  if (o === "U") return { dx: 0, dy:-amount };
-  /* o === "D" */ return { dx: 0, dy: amount };
-}
-// NEW: push out by *hitbox half-extent* along the portal normal (+ small pad)
-function pushOutByHitbox(o:Ori, halfW:number, halfH:number, pad=2){
-  if (o === "R" || o === "L") return pushOutAlong(o, halfW + pad);
-  return pushOutAlong(o, halfH + pad);
-}
+// --- tiny helpers ---
+const s2w = (x:number,y:number,c:HTMLCanvasElement,cam:Cam)=>{
+  const r = c.getBoundingClientRect(), sx = (x - r.left) * (c.width  / r.width), sy = (y - r.top) * (c.height / r.height);
+  return { wx: sx + (cam.x - c.width * .5), wy: sy + (cam.y - c.height * .5) };
+};
+const tb = (vx:number,vy:number,o:Ori)=> // world→(n,t)
+  o==="R" ? {n:vx,  t:vy} :
+  o==="L" ? {n:-vx, t:vy} :
+  o==="U" ? {n:-vy, t:vx} : {n:vy, t:vx};
+const fb = (n:number,t:number,o:Ori)=>    // (n,t)→world
+  o==="R" ? {vx:n,  vy:t} :
+  o==="L" ? {vx:-n, vy:t} :
+  o==="U" ? {vx:t,  vy:-n} : {vx:t, vy:n};
+const push = (o:Ori,d:number)=>           // push along portal normal
+  o==="R"?{dx:d,dy:0}:o==="L"?{dx:-d,dy:0}:o==="U"?{dx:0,dy:-d}:{dx:0,dy:d};
+const pushByHit = (o:Ori,hw:number,hh:number,p=2)=> // push by hitbox half extent (+pad)
+  (o==="R"||o==="L") ? push(o, hw+p) : push(o, hh+p);
 
 export const BackgroundScene = {
   setCanvas(c:CanvasRenderingContext2D){ ctx = c; },
@@ -86,28 +67,24 @@ export const BackgroundScene = {
   start(){
     L[0].M.clear(); L[1].M.clear();
     if (ctx){ const k=ctx.canvas; cam.x = k.width*.5; cam.y = k.height*.5; }
-    vapor = createFractalBackdropLayer(7, 0.12, 0.62, 90, "#131824", 4);
+    vapor = createFractalBackdropLayer(7, .12, .62, 90, "#131824", 4);
     loadLevel1();
-    createAnimator(a => {
+    createAnimator(a=>{
       player = createPlayer(a);
       if (ctx) player.body.pos = { x:64, y:24 };
       portals.setAnimator(a);
     });
 
-    // Mouse firing (left=A / right=B), with zoom-safe aim
-    if (ctx) {
+    if (ctx){
       const c = ctx.canvas;
-      c.oncontextmenu = e => { e.preventDefault(); return false; };
-      c.addEventListener("mousedown", (e)=>{
+      c.oncontextmenu = e => (e.preventDefault(), false);
+      c.addEventListener("mousedown", e=>{
         const map = getCurrentMap(); if (!map) return;
-
-        const { wx, wy } = screenToWorld(e.clientX, e.clientY, c, cam);
-        const px = player ? (player.body.pos.x + player.body.width*0.5) : wx;
-        const py = player ? (player.body.pos.y + player.body.height*0.5) : wy;
-        const dx = wx - px, dy = wy - py;
-
-        const kind: PortalKind = (e.button === 2) ? "B" : "A";
-        portalGun.spawn(kind, px, py, dx, dy, map, c.height);
+        const { wx, wy } = s2w(e.clientX, e.clientY, c, cam);
+        const px = player ? player.body.pos.x + player.body.width*.5  : wx;
+        const py = player ? player.body.pos.y + player.body.height*.5 : wy;
+        const kind:PortalKind = (e.button===2) ? "B" : "A";
+        portalGun.spawn(kind, px, py, wx-px, wy-py, map, c.height);
       });
     }
   },
@@ -116,130 +93,91 @@ export const BackgroundScene = {
 
   update(){
     if (!ctx) return;
-    const c = ctx;
-    const inp = getInputState();
+    const c = ctx, inp = getInputState();
     player?.update(inp, c);
 
-    // portals: advance projectiles; place portals in world-space when they hit
-    const dt = 1/60;
-    portalGun.update(dt, (kind: PortalKind, x: number, y: number, angle: number, o: Ori) => {
-      portals.replaceWorld(kind, x, y, angle, o);
-    });
+    // advance portal shots & place portals
+    portalGun.update(1/60, (kind, x, y, angle, o)=> portals.replaceWorld(kind, x, y, angle, o));
 
-    // --- Tiny teleport check (no colliders) ---
-    if (player) {
-      const P = portals.getSlots(); // {A?,B?}
-      if (P.A && P.B) {
-        // player center
-        const cx = player.body.pos.x + (player.body.width  * 0.5);
-        const cy = player.body.pos.y + (player.body.height * 0.5);
+    // --- teleport (A/B pair, no colliders) ---
+    if (player){
+      const P = portals.getSlots();
+      if (P.A && P.B){
+        const b:any = player.body, cx = b.pos.x + b.width*.5, cy = b.pos.y + b.height*.5, oldMask = b.pMask|0;
+        const hw = (b.hit?.w ?? b.width)  * .5, hh = (b.hit?.h ?? b.height) * .5;
 
-        // current inside mask (bit0=A, bit1=B)
-        const b:any = player.body as any;
-        const oldMask = b.pMask | 0;
-
-        // hitbox half extents
-        const hw = ((player.body.hit?.w ?? player.body.width)  * 0.5) | 0;
-        const hh = ((player.body.hit?.h ?? player.body.height) * 0.5) | 0;
-
-        // local AABB test; extend along portal normal by half extents
         const insideBit = (p:{x:number;y:number;angle:number;o:Ori}, bit:number)=>{
-          const dx = cx - p.x, dy = cy - p.y;
-          const ca = Math.cos(-p.angle), sa = Math.sin(-p.angle);
-          const lx = dx*ca - dy*sa, ly = dx*sa + dy*ca; // portal-local
-          const rx = PORTAL_W * 0.40, ry = PORTAL_H * 0.46;
-
-          if (p.o === "R" || p.o === "L") {
-            const rxN = rx + hw;
-            return (Math.abs(lx) <= rxN && Math.abs(ly) <= ry) ? bit : 0;
-          } else {
-            const ryN = ry + hh;
-            return (Math.abs(lx) <= rx && Math.abs(ly) <= ryN) ? bit : 0;
-          }
+          const dx = cx - p.x, dy = cy - p.y, ca = Math.cos(-p.angle), sa = Math.sin(-p.angle);
+          const lx = dx*ca - dy*sa, ly = dx*sa + dy*ca;
+          const rx = PORTAL_W*.40, ry = PORTAL_H*.46;
+          return (p.o==="R"||p.o==="L")
+            ? (Math.abs(lx) <= rx+hw && Math.abs(ly) <= ry ? bit : 0)
+            : (Math.abs(lx) <= rx    && Math.abs(ly) <= ry+hh ? bit : 0);
         };
 
-        const inA = insideBit(P.A as any, 1);
-        const inB = insideBit(P.B as any, 2);
-        const newMask = inA | inB;
+        const inA = insideBit(P.A,1), inB = insideBit(P.B,2), newMask = inA|inB;
+        const enterA = inA && !(oldMask&1), enterB = inB && !(oldMask&2);
 
-        const enterA = (inA && !(oldMask & 1));
-        const enterB = (inB && !(oldMask & 2));
+        if (enterA || enterB){
+          const enter = enterA ? P.A! : P.B!, exit = enterA ? P.B! : P.A!;
+          // map velocity; flip normal so momentum points out of exit
+          const lv = tb(b.vel.x, b.vel.y, enter.o), re = fb(-lv.n, lv.t, exit.o);
 
-        if (enterA || enterB) {
-          const enter = enterA ? P.A! : P.B!;
-          const exit  = enterA ? P.B! : P.A!;
+          // move beyond exit by hitbox half extent (+pad) to avoid clipping
+          const k = pushByHit(exit.o, hw, hh, 2);
+          const px = exit.x + k.dx, py = exit.y + k.dy;
+          b.pos.x += px - (b.pos.x + b.width*.5);
+          b.pos.y += py - (b.pos.y + b.height*.5);
 
-          // velocity mapping: flip normal so we come OUT of the exit
-          const lv = toBasis(player.body.vel.x, player.body.vel.y, enter.o);
-          const re = fromBasis(-lv.n, lv.t, exit.o);
+          // apply velocity (no boost, no loss) and clear contacts
+          b.vel.x = re.vx; b.vel.y = re.vy;
+          b.grounded = false; b.touchL = false; b.touchR = false; b.hitWall = 0;
 
-          // move center beyond exit plane by half hitbox (no clipping)
-          const kick = pushOutByHitbox(exit.o, hw, hh, /*pad=*/2);
-          const px = exit.x + kick.dx, py = exit.y + kick.dy;
-          const ddx = px - (player.body.pos.x + player.body.width*0.5);
-          const ddy = py - (player.body.pos.y + player.body.height*0.5);
-          player.body.pos.x += ddx; player.body.pos.y += ddy;
+          // 🔊 play SFX on portal enter
+          zzfx?.(...(port as unknown as number[]));
 
-          // apply velocity (no speed loss / no artificial boost)
-          player.body.vel.x = re.vx;
-          player.body.vel.y = re.vy;
-
-          // clear contacts so next physics step doesn’t glue or eat speed
-          player.body.grounded = false;
-          player.body.touchL = false;
-          player.body.touchR = false;
-          player.body.hitWall = 0;
-
-          // prevent immediate re-trigger on exit this frame
+          // suppress immediate re-trigger + mark overlap briefly
           b.pMask = 3;
-
-          // tell the player it's overlapping a portal for a few frames
           (player as any).setTouchingPortal?.(true, 3);
         } else {
           b.pMask = newMask;
-          (player as any).setTouchingPortal?.(newMask !== 0, 2);
+          (player as any).setTouchingPortal?.(newMask!==0, 2);
         }
       } else {
         (player as any).setTouchingPortal?.(false);
-        (player.body as any).pMask = 0;
+        (player!.body as any).pMask = 0;
       }
     }
 
+    // bg pan target = player x (or simple LR drift if no player)
     const px = player ? player.body.pos.x : bgX + ((+!!inp.right) - (+!!inp.left)) * 2;
-    bgX += (px - bgX) * 0.18;
+    bgX += (px - bgX) * .18;
 
-    const mp = getCurrentMap();
-    const ww = mp ? mp.width  * TILE : 1e4;
-    const wh = mp ? mp.height * TILE : 1e4;
+    const mp = getCurrentMap(), ww = mp ? mp.width*TILE : 1e4, wh = mp ? mp.height*TILE : 1e4;
     const py = player ? player.body.pos.y : cam.y;
-
-    updateSmoothCamera(cam, px, py, c.canvas.width, c.canvas.height, ww, wh, 0.14, 1/60, true);
+    updateSmoothCamera(cam, px, py, c.canvas.width, c.canvas.height, ww, wh, .14, 1/60, true);
   },
 
   draw(t:number){
     if (!ctx) return;
     const c = ctx, k = c.canvas, w = k.width, h = k.height, time = t/1000;
 
-    // sky gradient
+    // sky
     const g = c.createLinearGradient(0,0,0,h);
     [0,.4,.8,1].forEach((s,i)=>g.addColorStop(s, ["#090016","#250040","#1a1d2f","#0b0c12"][i]));
     c.fillStyle = g; c.fillRect(0,0,w,h);
 
     // backdrops
-    drawStars(c, w, h, time, time*0.15);
+    drawStars(c, w, h, time, time*.15);
     drawMoon(c, w, h, time, bgX);
     vapor?.(c, w, h, time, bgX);
-    drawClouds(c, w, h, time, bgX + time*0.25);
+    drawClouds(c, w, h, time, bgX + time*.25);
     drawNeonHaze(c, w, h, time, bgX);
 
-    // compact row renderer (shared by FAR/MID)
+    // FAR/MID rows
     const row = (r:typeof L[number])=>{
       const { min,max, sc, sp, gap, lift, bias, M } = r;
-      const lx = bgX * sp, sw = w / sc;
-      const si = Math.floor((lx - sw) / gap);
-      const ei = Math.ceil ((lx + sw*2) / gap);
-      const hmul = (1/sc)*bias;
-
+      const lx = bgX*sp, sw = w/sc, si = Math.floor((lx - sw)/gap), ei = Math.ceil((lx + sw*2)/gap), hmul = (1/sc)*bias;
       c.save(); c.scale(sc, sc);
       for (let i=si; i<ei; i++){
         if (!M.has(i)) M.set(i, generateBuildingVariants(1, min, max, hmul)[0]);
@@ -254,17 +192,13 @@ export const BackgroundScene = {
     drawTerrainBehind(c, w, h, time, bgX);
     row(L[1]);
 
-    // world layer
+    // world
     c.save();
     c.translate((w*.5 - cam.x)|0, (h*.5 - cam.y)|0);
     const map = getCurrentMap();
     if (map) drawMapAndColliders(c, map, TILE);
     player?.draw(c, t);
-
-    // raycast viz in world-space (aim matches geometry & zoom)
-    portalGun.draw(c, t);
-
-    // portals on top
+    portalGun.draw(c, t); // raycast viz
     portals.draw(c, t);
     c.restore();
 

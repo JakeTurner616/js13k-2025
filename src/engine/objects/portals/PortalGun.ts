@@ -6,6 +6,8 @@ import type { GameMapLike, PortalKind } from "./Portals";
 import type { Ori } from "./PortalPlacement";
 import { mapOffsetY } from "../../renderer/Space";
 import { isSolidTileId } from "../../../player/Physics";
+import { zip } from "../../../sfx/zip";
+import { zzfx } from "../../audio/SoundEngine"; // ✅ import actual zzfx
 
 type Axis = "x" | "y";
 type Projectile = {
@@ -135,6 +137,9 @@ export function createPortalGun(TILE:number){
   function spawn(kind:PortalKind, sx:number, sy:number, dx:number, dy:number, map:GameMapLike, canvasH:number){
     const rc = raycast(sx, sy, dx, dy, map, canvasH);
     if (!rc) return;
+
+    // 🔊 fire SFX when spawning a portal shot
+    zzfx?.(...(zip as unknown as number[]));
 
     // normalized dir for tracer
     const L = Math.hypot(dx, dy) || 1;
