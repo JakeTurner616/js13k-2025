@@ -1,11 +1,14 @@
-import { drawStars } from "../effects/Stars";
-import { drawClouds } from "../effects/Clouds";
-import { drawNeonHaze } from "../effects/NeonHaze";
-import { drawMoon } from "../effects/Moon";
-import { drawTerrainBehind, drawTerrainFront, createFractalBackdropLayer, type Drawer } from "../effects/terrain/Terrain";
+// src/engine/scenes/background/Environment.ts
+import { drawStars, drawClouds, drawNeonHaze, drawMoon } from "../effects";
+import {
+  drawTerrainBehind,
+  drawTerrainFront,
+  createFractalBackdropLayer,
+  type Drawer
+} from "../effects/terrain/Terrain";
 import { drawBuilding } from "../objects/drawBuilding";
 import { generateBuildingVariants } from "../init/initBuildingVariants";
-import type { BuildingVariant } from "../objects/types";
+import type { BuildingVariant } from "../objects/drawBuilding";
 
 type RowInit = { min:number; max:number; sc:number; sp:number; gap:number; lift:number; bias:number };
 type RowCfg = RowInit & { M:Map<number, BuildingVariant> };

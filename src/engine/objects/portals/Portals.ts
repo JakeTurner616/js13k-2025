@@ -1,5 +1,5 @@
 // src/engine/objects/portals/Portals.ts
-// Tiny portal pair; trim-aware via AtlasAnimator.drawFrame, then tinted.
+// Tiny portal pair; draw atlas frame to offscreen, tint via source-atop (no alpha bleed).
 
 import type { AtlasAnimator } from "../../../animation/AtlasAnimator";
 import type { Ori } from "./PortalPlacement";
@@ -17,9 +17,9 @@ export function createPortalManager(TILE:number){
   const PW = 2 * TILE, PH = 2 * TILE;
 
   let animator: AtlasAnimator | null = null;
-  let fw = 32, fh = 32, frames = 1, fps = 6; // logical frame + anim config
+  let fw = 32, fh = 32, frames = 1, fps = 10;
 
-  // scratch surface for tinting (sprite → tint atop → blit)
+  // Offscreen surface for masked tint (sprite → source-atop tint → blit)
   const scratch = document.createElement("canvas");
   const sctx = scratch.getContext("2d")!;
   scratch.width = PW; scratch.height = PH;
@@ -28,12 +28,9 @@ export function createPortalManager(TILE:number){
     animator = a;
     fw = a.fw ?? 32;
     fh = a.fh ?? 32;
-
-    // prefer explicit anim config; otherwise infer frames from meta width
-    const cfg = a.getMeta("portal");
-    const metaEntry = (a.meta as any)["portal"];
-    frames = Math.max(1, (cfg?.frameCount ?? ((((metaEntry?.srcW ?? metaEntry?.w ?? fw) / fw) | 0) || 1)));
-    fps    = Math.max(1, cfg?.fps ?? 10);
+    const m = a.getMeta?.("portal");
+    frames = Math.max(1, ((m?.frameCount ?? 1) | 0));
+    fps    = Math.max(1, ((m?.fps ?? 10) | 0));
   }
 
   function clear(){ slots.A = slots.B = undefined; }
@@ -52,40 +49,25 @@ export function createPortalManager(TILE:number){
   function getSlots(){ return { A: slots.A, B: slots.B }; }
 
   function drawOne(ctx:CanvasRenderingContext2D, p:Portal, t:number){
-    const tint = p.kind === "A" ? "#2a8dffad" : "#fc8e11a2";
+    const a = animator; if (!a) return;
+    const fi = ((t * 0.001 * fps) | 0) % frames;
+
+    // Draw atlas frame into PW×PH scratch (scaled), then tint only sprite pixels.
+    sctx.setTransform(PW / fw, 0, 0, PH / fh, 0, 0);
+    sctx.clearRect(0, 0, PW, PH);
+    a.drawFrame(sctx as unknown as CanvasRenderingContext2D, "portal", fi, 0, 0);
+
+    sctx.globalCompositeOperation = "source-atop";
+    sctx.globalAlpha = .85;
+    sctx.fillStyle = p.kind === "A" ? "#28f" : "#f80";
+    sctx.fillRect(0, 0, PW, PH);
+    sctx.globalCompositeOperation = "source-over";
+    sctx.globalAlpha = 1;
+
     ctx.save();
     ctx.translate(p.x, p.y);
     ctx.rotate(p.angle);
-
-    if (animator){
-      // draw logical fw×fh into PW×PH scratch via scale, then tint
-      const fi = ((t * 0.001 * fps) | 0) % frames;
-
-      sctx.setTransform(1,0,0,1,0,0);
-      sctx.clearRect(0,0,PW,PH);
-      sctx.save();
-      sctx.scale(PW / fw, PH / fh);
-
-      // AtlasAnimator draws into logical coords; dx,dy is top-left of logical frame box
-      animator.drawFrame(sctx as unknown as CanvasRenderingContext2D, "portal", fi, 0, 0);
-
-      sctx.restore();
-      sctx.globalCompositeOperation = "source-atop";
-      sctx.globalAlpha = 0.9;
-      sctx.fillStyle = tint;
-      sctx.fillRect(0,0,PW,PH);
-      sctx.globalCompositeOperation = "source-over";
-      sctx.globalAlpha = 1;
-
-      // subtle glow on blit
-      ctx.save();
-      ctx.shadowBlur = 12;
-      ctx.shadowColor = tint;
-      ctx.globalAlpha = 0.97;
-      ctx.drawImage(scratch, -PW/2, -PH/2);
-      ctx.restore();
-    } 
-
+    ctx.drawImage(scratch, -PW/2, -PH/2);
     ctx.restore();
   }
 
