@@ -57,53 +57,7 @@ export function drawMoon(ctx: CanvasRenderingContext2D, w: number, h: number, t:
   ctx.fillStyle = ld; ctx.beginPath(); ctx.arc(mx, my, r + .2, 0, 7); ctx.fill();
 }
 
-// ---------------- Clouds ----------------
-export function drawClouds(ctx: CanvasRenderingContext2D, w: number, h: number, t: number, scroll: number) {
-  const N = (x: number, y: number, s: number) => {
-    let a = 0, b = 1, fx = x, fy = y;
-    for (let o = 0; o < 3; o++) {
-      a += b * (S(fx * .035 + s) + S(fy * .027 + s * 1.7) + S((fx + fy) * .019 + s * 2.3)) / 3;
-      b *= .5; fx *= 1.9; fy *= 1.9;
-    }
-    return a * .5 + .5;
-  };
-  const R = (x: number, s: number) => (S(x * .02 + s) * .6 + S(x * .037 + s * 1.7) * .3 + S(x * .061 + s * 2.3) * .15) * .5 + .5;
 
-  const GS = 3, PAL = ["#ffffff", "#d6e8f5", "#a7c7de", "#7da8c5"];
-
-  function layer(seed: number, par: number, base: number, amp: number, thick: number, alph: number) {
-    const off = scroll * par, y0 = h * base, s = seed + t * .06, L = 64 / par;
-    for (let x = -L; x < w + L; x += GS) {
-      const u = (x + off) / L, ci = (u | 0), fx = u - ci;
-      const r1 = H(ci + seed * 17), r2 = H(ci * 31 + seed * 7);
-      if (r1 < .35) continue;
-      const width = .35 + .55 * r2, edge = 1 - Math.abs(fx - .5) / (.5 * width);
-      if (edge <= 0) continue;
-      const edgeSoft = edge > 1 ? 1 : edge < 0 ? 0 : edge;
-
-      const crest = y0 + (R((x + off) * .9, s) - .5) * amp;
-      const T = thick * (.7 + .5 * N(ci * .2, crest * .15, s));
-
-      for (let y = Math.max(0, (crest - T) | 0); y < crest + T; y += GS) {
-        const v = y - crest, body = Math.max(0, 1 - Math.abs(v) / T);
-        const wob = N(x * .6 + ci * 3, y * .5, s) * 50;
-        const cover = N(x + wob, v * 1.25 + N(ci, crest, s) * 22, s);
-        const dens = cover * body * edgeSoft - .15 + N(x * .7, y * .5, s * .7) * .05;
-        if (dens > 0) {
-          const shade = dens + (crest - y) * .002 - N(x + 140, y - 30, s) * .05;
-          const idx = shade > .32 ? 0 : shade > .22 ? 1 : shade > .12 ? 2 : 3;
-          ctx.globalAlpha = alph; ctx.fillStyle = PAL[idx];
-          ctx.fillRect(x, y, GS, GS);
-        }
-      }
-    }
-    ctx.globalAlpha = 1;
-  }
-
-  layer(5, .25, .18, 16, 22, .22);
-  layer(9, .55, .26, 14, 20, .24);
-  layer(13, .95, .34, 12, 18, .26);
-}
 
 // ---------------- NeonHaze ----------------
 export function drawNeonHaze(ctx: CanvasRenderingContext2D, w: number, h: number, t: number, cx: number) {

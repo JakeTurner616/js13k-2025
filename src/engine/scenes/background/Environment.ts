@@ -1,5 +1,5 @@
 // src/engine/scenes/background/Environment.ts
-import { drawStars, drawClouds, drawNeonHaze, drawMoon } from "../effects";
+import { drawStars, drawNeonHaze, drawMoon } from "../effects";
 import {
   drawTerrainBehind,
   drawTerrainFront,
@@ -55,7 +55,7 @@ export class Environment {
     drawStars(c, w, h, time, time*.15);
     drawMoon(c, w, h, time, bgX);
     this.vapor?.(c, w, h, time, bgX);
-    drawClouds(c, w, h, time, bgX + time*.25);
+
     drawNeonHaze(c, w, h, time, bgX);
 
     // parallax rows
