@@ -5,7 +5,8 @@
 // - Instant cling: on wall touch in F (and not detached) → snap to C.
 // - Detach grace only on real flings (useAim=true) to prevent re-cling flicker.
 // - p.noCling > 0 disables all cling behavior (used after portal exits).
-// - NEW: Never enter cling (or wall-anchor while aiming) if p.touchPortal is true.
+// - Never enter cling (or wall-anchor while aiming) if p.touchPortal is true.
+// - FIX: Only reset animation timer when the animation actually changes.
 
 import { clamp, cos, sin, PI } from "./math";
 import { A } from "./anim";
@@ -14,7 +15,9 @@ export const ST = { G:0, F:1, C:2 } as const;
 
 export type CoreInput = { left:boolean; right:boolean; jump:boolean };
 
+// Guarded setAnim: only switch (and reset timer) if target differs.
 const setAnim = (p:any, n:number, name:"idle"|"dash"|"jump"|"fall"|"ledge")=>{
+  if (p.anim === n) return;
   p.anim = n;
   p.setAnimation?.(name);
 };
@@ -66,7 +69,9 @@ export const aim = (p:any, i:CoreInput, onWall:boolean)=>{
   const canWallAnchor = !p.noCling && !p.touchPortal && (onWall || p.st===ST.C);
 
   p.aiming=true;
-  setAnim(p, canWallAnchor ? A.ledge : A.idle, canWallAnchor ? "ledge" : "idle");
+  if (canWallAnchor) setAnim(p, A.ledge, "ledge");
+  else               setAnim(p, A.idle,  "idle");
+
   if (canWallAnchor){ b.gravity=0; b.vel.x=p.clingSide*0.6; b.vel.y=0; }
   else { b.vel.x=0; b.vel.y=0; }
 
@@ -82,7 +87,11 @@ const g = (p:any,i:CoreInput,onWall:boolean)=>{
   const b=p.body, m=Math.abs;
   (i.jump && (aim(p,i,onWall),1)) ||
   (!i.jump && p.wasJump && p.aiming && (S(p,ST.F,true),1)) ||
-  setAnim(p, m(b.vel.x)>0.05 ? A.dash : A.idle, m(b.vel.x)>0.05 ? "dash" : "idle");
+  (
+    m(b.vel.x)>0.05
+      ? setAnim(p, A.dash, "dash")
+      : setAnim(p, A.idle, "idle")
+  );
 };
 
 const c = (p:any,i:CoreInput)=>{

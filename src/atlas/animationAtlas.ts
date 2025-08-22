@@ -1,3 +1,4 @@
+// src/atlas/animationAtlas.ts
 import { AtlasAnimator, type AtlasMeta, type AnimationConfig } from "../animation/AtlasAnimator";
 import { getAtlasImage, waitForAtlas } from "../engine/renderer/SharedAtlas";
 import ftp from "../assets/packed/animations/texture";
@@ -34,7 +35,7 @@ const nameMap = {
   dash:   "6_Alternative_Colour_Cat_Dash-Sheet",
   jump:   "3_Alternative_Colour_Cat_Jump-Sheet",
   fall:   "4_Alternative_Colour_Cat_Fall-Sheet",
-  portal: "portals-Sheet",                           // ⬅️ add this
+  portal: "portals-Sheet",
 } as const;
 
 const atlasMeta: AtlasMeta = {};
@@ -46,20 +47,34 @@ const atlasMeta: AtlasMeta = {};
 
 // Frames are sliced from 32×32 strips
 const FW = 32, FH = 32;
-const mkAnim = (name: keyof typeof nameMap, fps: number, dx = 0, dy = 0): AnimationConfig | null => {
+
+/**
+ * Create an animation config.
+ * - fps: playback frames-per-second
+ * - framesOverride: if provided, forces a specific frameCount (useful when the strip contains padding/blank cells)
+ */
+const mkAnim = (
+  name: keyof typeof nameMap,
+  fps: number,
+  framesOverride?: number,
+  dx = 0,
+  dy = 0
+): AnimationConfig | null => {
   const m = (atlasMeta as any)[name as string];
   if (!m) return null;
-  const frames = Math.max(1, (((m.srcW ?? FW) / FW) | 0));
-  return { name: name as string, frameCount: frames, fps, dx, dy };
+  const autoFrames = Math.max(1, (((m.srcW ?? FW) / FW) | 0));
+  const frameCount = (framesOverride && framesOverride > 0) ? framesOverride|0 : autoFrames;
+  return { name: name as string, frameCount, fps, dx, dy };
 };
 
 const animations = [
-  mkAnim("idle",  8),
-  mkAnim("jump", 10),
-  mkAnim("fall", 10),
-  mkAnim("dash", 12),
-  mkAnim("ledge", 6),
-  mkAnim("death", 8),
+  mkAnim("idle",   8),
+  mkAnim("jump",  10),
+  mkAnim("fall",  10),
+  mkAnim("dash",  12),
+  mkAnim("ledge",  6),
+  // 👇 force exactly 7 frames, play a bit slower so it reads nicely
+  mkAnim("death",  6, 7),
   mkAnim("portal", 8),
 ].filter(Boolean) as AnimationConfig[];
 

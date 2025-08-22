@@ -1,5 +1,5 @@
 // src/engine/scenes/BackgroundScene.ts
-// Thin scene wrapper that orchestrates environment, player, and portals.
+// + call player.setLevelBounds(...) once after level load and on resize
 
 import { drawMapAndColliders } from "../renderer/render";
 import { loadLevel1, getCurrentMap } from "../renderer/level-loader";
@@ -14,7 +14,7 @@ import { PortalSystem } from "./background/PortalSystem";
 const TILE = 16;
 let ctx:CanvasRenderingContext2D|null = null;
 
-let env = new Environment();            // defaults remain
+let env = new Environment();
 let portals = new PortalSystem();
 
 let player:Player|null = null;
@@ -37,12 +37,20 @@ export const BackgroundScene = {
       if (ctx) player.body.pos = { x:64, y:24 };
       portals.setAnimator(a);
       portals.setPlayer(player);
+
+      // ✅ Cache level bounds ONCE (and whenever canvas resizes)
+      const map = getCurrentMap();
+      if (map) player.setLevelBounds(map.width, map.height, k.height, TILE);
+      addEventListener("resize", () => {
+        const m = getCurrentMap(); if (!ctx || !m) return;
+        player!.setLevelBounds(m.width, m.height, ctx.canvas.height, TILE);
+      });
     });
 
     portals.attachInput(k, cam);
   },
 
-  stop(){ /* noop for now */ },
+  stop(){ /* noop */ },
 
   update(){
     if (!ctx) return;
@@ -51,7 +59,6 @@ export const BackgroundScene = {
 
     portals.tick();
 
-    // camera + bg follow
     const px = player ? player.body.pos.x : bgX + ((+!!inp.right) - (+!!inp.left)) * 2;
     bgX += (px - bgX) * .18;
 
@@ -64,10 +71,8 @@ export const BackgroundScene = {
     if (!ctx) return;
     const c = ctx, k = c.canvas, w = k.width, h = k.height, time = t/1000;
 
-    // env layers
     env.draw(c, time, bgX);
 
-    // world pass
     c.save();
     c.translate((w*.5 - cam.x)|0, (h*.5 - cam.y)|0);
     const map = getCurrentMap();
