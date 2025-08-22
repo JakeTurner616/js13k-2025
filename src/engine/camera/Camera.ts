@@ -1,5 +1,7 @@
-// Tiny smooth camera: continuous Y target + spring; X EMA. Keep floats; snap in draw.
-const { max, min, pow } = Math;
+// src/engine/camera/Camera.ts
+// Enhanced smooth camera with pixel snapping to prevent flickering
+
+const { max, min, pow, round } = Math;
 export type Cam = { x:number, y:number };
 
 export function updateSmoothCamera(
@@ -9,13 +11,14 @@ export function updateSmoothCamera(
   ww: number, wh: number,          // world size
   smoothX = 0.14,                  // 0..1 (X EMA)
   dt = 1/60,
-  upwardBias = true                // faster up than down
+  upwardBias = true,               // faster up than down
+  pixelSnap = true                 // NEW: enable pixel snapping to prevent flickering
 ){
   const hw = sw * .5, hh = sh * .5;
 
   // --- X: simple EMA ---
   const kx = 1 - pow(1 - smoothX, dt * 60);
-  const cx = cam.x + (tx - cam.x) * kx;
+  let cx = cam.x + (tx - cam.x) * kx;
 
   // --- Y: continuous desired center via smoothstep between safe lines ---
   // screen-space player y (no current transform)
@@ -46,6 +49,14 @@ export function updateSmoothCamera(
     cy += vy * dt;
   }
 
+  // Apply pixel snapping to prevent sub-pixel flickering
+  if (pixelSnap) {
+    cx = round(cx);
+    cy = round(cy);
+    // Also snap velocity to prevent gradual drift
+    vy = round(vy * 10) / 10;
+  }
+
   // --- generous clamps with overscan (lets short maps scroll) ---
   const smallW = ww <= sw, smallH = wh <= sh;
   const clampXMin = smallW ? ww * .5 : hw;
@@ -56,4 +67,31 @@ export function updateSmoothCamera(
   cam.x = max(clampXMin, min(clampXMax, cx));
   cam.y = max(clampYMin, min(clampYMax, cy));
   (cam as any)[vyKey] = vy;
+}
+
+// NEW: Helper function to apply camera transform with proper pixel snapping
+export function applyCameraTransform(
+  ctx: CanvasRenderingContext2D,
+  cam: Cam,
+  screenWidth: number,
+  screenHeight: number
+) {
+  const { x, y } = cam;
+  const centerX = screenWidth * 0.5;
+  const centerY = screenHeight * 0.5;
+  
+  // Reset transform and apply pixel-snapped camera
+  ctx.setTransform(1, 0, 0, 1, 0, 0);
+  ctx.translate(
+    Math.round(centerX - x),
+    Math.round(centerY - y)
+  );
+}
+
+// NEW: Alternative approach - snap camera during rendering instead of simulation
+export function getSnappedCameraPosition(cam: Cam): Cam {
+  return {
+    x: Math.round(cam.x),
+    y: Math.round(cam.y)
+  };
 }
