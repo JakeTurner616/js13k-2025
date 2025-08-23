@@ -27,7 +27,8 @@ export const BackgroundScene = {
   start(){
     if (!ctx) return;
     const k = ctx.canvas;
-    cam.x = k.width*.5; cam.y = k.height*.5;
+    cam.x = k.width*.5; 
+    cam.y = k.height*.5;
 
     env.start();
     loadLevel1();
@@ -38,12 +39,13 @@ export const BackgroundScene = {
       portals.setAnimator(a);
       portals.setPlayer(player);
 
-      // ✅ Cache level bounds ONCE (and whenever canvas resizes)
+      // ✅ Cache level bounds once and keep updated on resize
       const map = getCurrentMap();
       if (map) player.setLevelBounds(map.width, map.height, k.height, TILE);
       addEventListener("resize", () => {
-        const m = getCurrentMap(); if (!ctx || !m) return;
-        player!.setLevelBounds(m.width, m.height, ctx.canvas.height, TILE);
+        if (!ctx) return;
+        const m = getCurrentMap();
+        if (m) player!.setLevelBounds(m.width, m.height, ctx.canvas.height, TILE);
       });
     });
 
@@ -59,12 +61,18 @@ export const BackgroundScene = {
 
     portals.tick();
 
-    const px = player ? player.body.pos.x : bgX + ((+!!inp.right) - (+!!inp.left)) * 2;
+    const px = player ? player.body.pos.x 
+                      : bgX + ((+!!inp.right) - (+!!inp.left)) * 2;
     bgX += (px - bgX) * .18;
 
-    const mp = getCurrentMap(), ww = mp ? mp.width*TILE : 1e4, wh = mp ? mp.height*TILE : 1e4;
+    const mp = getCurrentMap(), 
+          ww = mp ? mp.width*TILE : 1e4, 
+          wh = mp ? mp.height*TILE : 1e4;
     const py = player ? player.body.pos.y : cam.y;
-    updateSmoothCamera(cam, px, py, c.canvas.width, c.canvas.height, ww, wh, .14, 1/60, true);
+
+    // Increase the min height cap to move camera up
+    const minHeightCap = c.canvas.height * 0.7; // was likely 1.0, now 0.7 to move up
+    updateSmoothCamera(cam, px, py, c.canvas.width, minHeightCap, ww, wh, .14, 1/60, true);
   },
 
   draw(t:number){
