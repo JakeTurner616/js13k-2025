@@ -13,13 +13,25 @@ export interface AnimationConfig {
 }
 
 export class AtlasAnimator {
+  img: HTMLImageElement;
+  meta: Record<string, AtlasEntry>;
+  fw: number;
+  fh: number;
+  anims: AnimationConfig[];
+
   constructor(
-    public img:HTMLImageElement,
-    public meta:Record<string, AtlasEntry>,
-    public fw:number,
-    public fh:number,
-    public anims:AnimationConfig[]
-  ){}
+    img: HTMLImageElement,
+    meta: Record<string, AtlasEntry>,
+    fw: number,
+    fh: number,
+    anims: AnimationConfig[]
+  ){
+    this.img = img;
+    this.meta = meta;
+    this.fw = fw;
+    this.fh = fh;
+    this.anims = anims;
+  }
 
   getMeta(name:string){ return this.anims.find(a=>a.name===name); }
 

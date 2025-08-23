@@ -78,7 +78,7 @@ const columns=(c:CanvasRenderingContext2D,x:number,y:number,cL:number,cR:number,
 };
 
 // --- windows / fascia ---
-const windows=(c:CanvasRenderingContext2D,x:number,y:number,v:BuildingVariant,cL:number,cR:number,fwL:number,fwR:number,side:number,fh:number,dep:number,time:number)=>{
+const windows=(c:CanvasRenderingContext2D,x:number,y:number,v:BuildingVariant,cL:number,cR:number,fwL:number,fwR:number,side:number,fh:number,dep:number)=>{
   const vMar=fh*.08, faceH=fh-vMar*2;
   const baseL=v.wallLeftColor||"#2a2a2f", baseR=v.wallRightColor||"#232327";
   const d1="#1b1b20", d2="#16161a", m1="#34343b", m2="#2a2a30";
@@ -87,7 +87,7 @@ const windows=(c:CanvasRenderingContext2D,x:number,y:number,v:BuildingVariant,cL
   const s=seed(sSeed), vid=(s*997|0)%5;
 
   // iso helpers
-  const vstrip=(bx:number,by:number,fw:number,left:boolean,dm:number,u0:number,u1:number,y0:number,h:number,col:string)=>{
+  const vstrip=(bx:number,_by:number,fw:number,left:boolean,dm:number,u0:number,u1:number,y0:number,h:number,col:string)=>{
     const lx0=u0*fw, lx1=u1*fw, x0=bx+(left?lx0*.5:lx0), x1=bx+(left?lx1*.5:lx1);
     const d0=(lx0/fw)*dep*dm, dA=(lx1/fw)*dep*dm;
     c.fillStyle=col; c.beginPath();
@@ -181,6 +181,6 @@ export function drawBuilding(
 
   walls(c,x,y,fwR,side,fh,dep, v.wallLeftColor??"#333", v.wallRightColor??"#222");
   if(v.columns) columns(c,x,y,cL,cR,fwL,fwR,side,fh,dep);
-  windows(c,x,y,v,cL,cR,fwL,fwR,side,fh,dep,t);
+  windows(c,x,y,v,cL,cR,fwL,fwR,side,fh,dep);
   roof(c,x,y,fwL,fwR,side,dep,v,t);
 }
