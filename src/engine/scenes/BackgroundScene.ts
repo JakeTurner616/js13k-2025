@@ -39,20 +39,13 @@ export const BackgroundScene = {
       portals.setAnimator(a);
       portals.setPlayer(player);
 
-      // ✅ Cache level bounds once and keep updated on resize
-      const map = getCurrentMap();
-      if (map) player.setLevelBounds(map.width, map.height, k.height, TILE);
-      addEventListener("resize", () => {
-        if (!ctx) return;
-        const m = getCurrentMap();
-        if (m) player!.setLevelBounds(m.width, m.height, ctx.canvas.height, TILE);
-      });
+
     });
 
     portals.attachInput(k, cam);
   },
 
-  stop(){ /* noop */ },
+
 
   update(){
     if (!ctx) return;
