@@ -3,8 +3,7 @@ import fs from "fs";
 import path from "path";
 
 const imagePaths = [
-  { name: "packed", file: "src/assets/packed/animations/texture.png" },
-  { name: "map", file: "src/assets/img/map-packed-min.png" }
+  { name: "packed", file: "src/assets/packed/animations/texture.png" }
 ];
 
 let out = `// Auto-generated: embedded PNGs as base64\n`;

@@ -3,14 +3,14 @@
   "private": true,
   "version": "0.0.0",
   "type": "module",
-  "scripts": {
-    "dev": "vite",
-    "build": "rollup -c && node tools/compress.js && node tools/inline-html.js",
-    "analyze": "cross-env ANALYZE=1 rollup -c",
-    "zip": "cross-zip dist js13k.zip",
-    "encode": "node scripts/encode-png.js",
-    "preview": "vite preview"
-  },
+"scripts": {
+  "dev": "vite",
+  "build": "node tools/embed-ftp-json.js && node tools/embed-image.js && rollup -c && node tools/compress.js && node tools/inline-html.js",
+  "analyze": "rollup -c rollup.analyze.js",
+  "zip": "cross-zip dist js13k.zip",
+  "encode": "node scripts/encode-png.js",
+  "preview": "vite preview"
+},
   "devDependencies": {
     "@rollup/plugin-commonjs": "^28.0.6",
     "@rollup/plugin-node-resolve": "^16.0.1",

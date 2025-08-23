@@ -1,4 +1,8 @@
 // src/engine/scenes/background/PortalSystem.ts
+// Keeps: input, raycast spawn, sprite portals, side/orientation, velocity transform.
+// Drops: pixel masks, hysteresis, player collide toggles, pMask plumbing.
+// Uses a tiny cooldown to avoid instant re-entry.
+
 import { createPortalManager, createPortalGun, type PortalKind, PORTAL_W, PORTAL_H } from "../../objects/portals/Portals";
 import { tb, fb, pushByHit, s2w } from "./sceneUtils";
 import { getCurrentMap } from "../../renderer/level-loader";
@@ -8,7 +12,8 @@ import type { Player } from "../../../player/Player";
 import type { Cam } from "../../camera/Camera";
 
 const TILE = 16;
-const { cos, sin } = Math;
+const { cos, sin, max } = Math;
+
 type PL = { x:number; y:number; angle:number; o:"R"|"L"|"U"|"D" };
 
 export class PortalSystem {
@@ -17,8 +22,8 @@ export class PortalSystem {
   private player: Player | null = null;
   private onDown?: (e: MouseEvent) => void;
 
-  private prevHardMask = 0;
-  private softActiveMask = 0;
+  // simple re-entry guard (frames)
+  private cool = 0;
 
   setPlayer(p: Player | null) { this.player = p; }
   setAnimator(a: any) { this.portals.setAnimator(a); }
@@ -26,13 +31,7 @@ export class PortalSystem {
   clear() {
     this.portals.clear();
     (this.portalGun as any).clear?.();
-    this.prevHardMask = this.softActiveMask = 0;
-    const pl = this.player;
-    if (pl) {
-      (pl.body as any).pMask = 0;
-      (pl as any).setTouchingPortal?.(false);
-      pl.body.collide = true;
-    }
+    this.cool = 0;
   }
 
   attachInput(k: HTMLCanvasElement, cam: Cam) {
@@ -56,92 +55,56 @@ export class PortalSystem {
     const dx = px - p.x, dy = py - p.y;
     return { lx: dx*ca - dy*sa, ly: dx*sa + dy*ca };
   }
-  private soft(p: PL, bx:number,by:number,bw:number,bh:number, tight:boolean){
-    const cx = bx + bw*.5, cy = by + bh*.5;
+  private centerInEllipse(p: PL, cx:number, cy:number, hw:number, hh:number){
+    // center + a small bias along portal axis to be generous
     const { lx, ly } = this.rotLocal(p, cx, cy);
-    const rx = PORTAL_W * (tight ? .46 : .54) + ((p.o==="R"||p.o==="L") ? bw*(tight?.25:.5) : 0);
-    const ry = PORTAL_H * (tight ? .48 : .58) + ((p.o==="U"||p.o==="D") ? bh*(tight?.25:.5) : 0);
+    const rx = PORTAL_W * .48 + ((p.o==="R"||p.o==="L") ? hw*.35 : 0);
+    const ry = PORTAL_H * .46 + ((p.o==="U"||p.o==="D") ? hh*.35 : 0);
     const nx = lx / rx, ny = ly / ry;
     return nx*nx + ny*ny <= 1;
   }
-  private hard(p: PL, bx:number,by:number,bw:number,bh:number){
-    const fm = this.portals.getFootprintMask();
-    if (fm.bbox.x1 < fm.bbox.x0) return false;
-    const STEP=2, HIT_MIN=3, x1=bx+bw, y1=by+bh;
-    let hits=0;
-    for (let sy=by; sy<y1; sy+=STEP){
-      for (let sx=bx; sx<x1; sx+=STEP){
-        const { lx, ly } = this.rotLocal(p, sx, sy);
-        const mx = (lx + fm.w*.5) | 0, my = (ly + fm.h*.5) | 0;
-        if (mx < fm.bbox.x0 || mx > fm.bbox.x1 || my < fm.bbox.y0 || my > fm.bbox.y1) continue;
-        if (mx < 0 || my < 0 || mx >= fm.w || my >= fm.h) continue;
-        if (fm.data[my*fm.w+mx] && ++hits >= HIT_MIN) return true;
-      }
-    }
-    return false;
-  }
 
-  private tele() {
+  private teleportIfInside() {
     const S = this.portals.getSlots(), pl = this.player;
-    if (!(pl && S.A && S.B)) {
-      (pl as any)?.setTouchingPortal?.(false);
-      if (pl) (pl.body as any).pMask = 0;
-      this.prevHardMask = this.softActiveMask = 0;
-      return;
-    }
+    if (!(pl && S.A && S.B)) return;
+    if (this.cool > 0) { this.cool--; return; }
 
     const b:any = pl.body;
     const hb = b.hit ?? {x:0,y:0,w:b.width,h:b.height};
-    const bx = (b.pos.x + hb.x)|0, by = (b.pos.y + hb.y)|0, bw = hb.w|0, bh = hb.h|0;
     const cx = b.pos.x + b.width*.5, cy = b.pos.y + b.height*.5;
+    const hw=(hb.w*.5)|0, hh=(hb.h*.5)|0;
 
-    // soft hysteresis
-    const enterBits =
-      (this.soft(S.A, bx,by,bw,bh, false) ? 1 : 0) |
-      (this.soft(S.B, bx,by,bw,bh, false) ? 2 : 0);
+    const inA = this.centerInEllipse(S.A, cx, cy, hw, hh);
+    const inB = !inA && this.centerInEllipse(S.B, cx, cy, hw, hh);
+    if(!(inA||inB)) return;
 
-    let keepBits = 0;
-    if (this.softActiveMask & 1) keepBits |= (this.soft(S.A, bx,by,bw,bh, true) ? 1 : 0);
-    if (this.softActiveMask & 2) keepBits |= (this.soft(S.B, bx,by,bw,bh, true) ? 2 : 0);
+    const ent = inA ? S.A : S.B!;   // entered
+    const ext = inA ? S.B! : S.A!;  // exit
 
-    this.softActiveMask = enterBits | keepBits;
-    b.pMask = this.softActiveMask;
-    (pl as any).setTouchingPortal?.(this.softActiveMask !== 0, 2);
-
-    // hard pixel mask (edge trigger)
-    const hardMask =
-      (this.hard(S.A, bx,by,bw,bh) ? 1 : 0) |
-      (this.hard(S.B, bx,by,bw,bh) ? 2 : 0);
-
-    const enterA = !!(hardMask & 1) && !(this.prevHardMask & 1);
-    const enterB = !!(hardMask & 2) && !(this.prevHardMask & 2);
-    if (!(enterA || enterB)) { this.prevHardMask = hardMask; return; }
-
-    const ent = enterA ? S.A : S.B!, ext = enterA ? S.B! : S.A!;
+    // reflect velocity across portal normal and map basis A->B
     const lv = tb(b.vel.x, b.vel.y, ent.o);
     const re = fb(-lv.n, lv.t, ext.o);
 
-    const hw=(hb.w*.5)|0, hh=(hb.h*.5)|0;
+    // push out relative to exit portal plane (no collide toggles)
     const k = pushByHit(ext.o, hw, hh, 2);
     const px = ext.x + k.dx, py = ext.y + k.dy;
 
+    // apply transform
     b.pos.x += px - cx; b.pos.y += py - cy;
-    b.vel.x = re.vx; b.vel.y = re.vy;
-    b.grounded = b.touchL = b.touchR = false; b.hitWall = 0;
+    b.vel.x = re.vx;    b.vel.y = re.vy;
+    b.grounded = false; b.touchL = b.touchR = false; b.hitWall = 0;
 
-    zzfx?.(...(port as unknown as number[]));
+    try{ zzfx?.(...(port as unknown as number[])); }catch{}
 
-    this.prevHardMask = 3;
-    this.softActiveMask = 3;
-    b.pMask = 3;
-    (pl as any).setTouchingPortal?.(true, 3);
+    // small cooldown to prevent immediate re-entry thrash
+    this.cool = 8; // ~8 ticks @60Hz
   }
 
   tick() {
     this.portalGun.update(1/60, (k:PortalKind, x:number, y:number, a:number, o:"R"|"L"|"U"|"D") =>
       this.portals.replaceWorld(k, x, y, a, o)
     );
-    this.tele();
+    this.teleportIfInside();
   }
 
   draw(ctx: CanvasRenderingContext2D, t: number) {
