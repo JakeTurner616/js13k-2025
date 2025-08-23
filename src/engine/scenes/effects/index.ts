@@ -1,76 +1,56 @@
 // src/engine/scenes/effects/index.ts
-// Merged effects: Stars, Moon, Clouds, NeonHaze (with safe radius clamps)
+import type { Draw } from "../u";
+import { addB, S, Co, H, POS, gradR, col } from "../u";
 
-const S = Math.sin, C = Math.cos;
-const H = (n: number) => { const f = S(n * 12.9898) * 43758.5453; return f - (f | 0); };
-const POS = (v: number, eps = 1e-3) => v > eps ? v : eps; // prevent negative/zero radii
-
-// ---------------- Stars ----------------
-export function drawStars(ctx: CanvasRenderingContext2D, w: number, h: number, t: number, scroll: number) {
-  ctx.fillStyle = "#fff";
-  const cutoff = h * .35;
-  for (let i = 0; i < 60; i++) {
-    const x = (i * 89 + scroll) % w;
-    const yf = ((i * 97) % 100 / 100) ** 2;
-    const y = cutoff * yf;
-    const tw = .5 + .5 * S(t / 500 + i * 7);
-    const sz = 1 + tw * .5 * (.3 + ((i * 73) % 10) / 10);
-    ctx.globalAlpha = tw;
-    ctx.fillRect(x, y, sz, sz);
+// Stars
+addB(((c,w,h,t,scroll)=>{
+  c.fillStyle = col(0);
+  const cutoff=h*.35;
+  for(let i=0;i<60;i++){
+    const x=(i*89+scroll*.15)%w;
+    const yf=((i*97)%100/100)**2; const y=cutoff*yf;
+    const tw=.5+.5*S(t/500+i*7);
+    const sz=1+tw*.5*(.3+((i*73)%10)/10);
+    c.globalAlpha=tw; c.fillRect(x,y,sz,sz);
   }
-  ctx.globalAlpha = 1;
-}
+  c.globalAlpha=1;
+}) as Draw);
 
-// ---------------- Moon (clamped) ----------------
-export function drawMoon(ctx: CanvasRenderingContext2D, w: number, h: number, t: number, camX: number) {
-  const mx = w * .18 + S(t * .05) * 10 - camX * .03;
-  const my = h * .22 + S(t * .07) * 6;
-  const r  = POS(h * .12);
+// Moon
+addB(((c,w,h,t,cx)=>{
+  const mx=w*.18+S(t*.05)*10 - cx*.03, my=h*.22+S(t*.07)*6, r=POS(h*.12);
 
-  // halo
-  let g = ctx.createRadialGradient(mx, my, 0, mx, my, POS(r * 2.2));
-  g.addColorStop(0, "rgba(210,225,255,.14)");
-  g.addColorStop(1, "rgba(0,0,0,0)");
-  ctx.fillStyle = g;
-  const hr = r * 2.2; ctx.fillRect(mx - hr, my - hr, hr * 2, hr * 2);
+  let g = gradR(c, mx, my, r*2.2, [[0,17],[1,18]]);
+  c.fillStyle=g; const hr=r*2.2; c.fillRect(mx-hr,my-hr,hr*2,hr*2);
 
-  // disc
-  g = ctx.createRadialGradient(mx - r * .25, my - r * .25, POS(r * .2), mx, my, r);
-  g.addColorStop(0, "#eef1fb"); g.addColorStop(.7, "#d9dcec"); g.addColorStop(1, "#b7bed2");
-  ctx.fillStyle = g; ctx.beginPath(); ctx.arc(mx, my, r, 0, 7); ctx.fill();
+  g = c.createRadialGradient(mx-r*.25,my-r*.25,POS(r*.2),mx,my,r);
+  g.addColorStop(0, col(14)); g.addColorStop(.7, col(15)); g.addColorStop(1, col(16));
+  c.fillStyle=g; c.beginPath(); c.arc(mx,my,r,0,7); c.fill();
 
-  // craters (clamped radii)
-  for (let i = 0; i < 18; i++) {
-    const a = H(i) * 6.283, d = r * (.18 + .68 * H(i + 1));
-    const cx = mx + C(a) * d, cy = my + S(a) * d;
-    if ((cx - mx) ** 2 + (cy - my) ** 2 > r * r * .83) continue;
-    const cr = POS(r * (.02 + .05 * H(i + 2)));
-    const k  = .35 + .65 * H(i + 3);
-    ctx.fillStyle = "rgba(40,45,60,.26)"; ctx.beginPath(); ctx.arc(cx, cy, cr, 0, 7); ctx.fill();
-    ctx.strokeStyle = "rgba(230,235,255,.10)"; ctx.lineWidth = POS(cr * .34);
-    ctx.beginPath(); ctx.arc(cx, cy, POS(cr * k), 0, 7); ctx.stroke();
+  for(let i=0;i<18;i++){
+    const a=H(i)*6.283, d=r*(.18+.68*H(i+1)), cx0=mx+Co(a)*d, cy0=my+S(a)*d;
+    if((cx0-mx)**2+(cy0-my)**2>r*r*.83) continue;
+    const cr=POS(r*(.02+.05*H(i+2))), k=.35+.65*H(i+3);
+    c.fillStyle=col(19); c.beginPath(); c.arc(cx0,cy0,cr,0,7); c.fill();
+    c.strokeStyle=col(20); c.lineWidth=POS(cr*.34); c.beginPath(); c.arc(cx0,cy0,POS(cr*k),0,7); c.stroke();
   }
 
-  // limb darkening
-  const ld = ctx.createRadialGradient(mx, my, 0, mx, my, r);
-  ld.addColorStop(0, "rgba(0,0,0,0)"); ld.addColorStop(1, "rgba(0,0,0,.22)");
-  ctx.fillStyle = ld; ctx.beginPath(); ctx.arc(mx, my, r + .2, 0, 7); ctx.fill();
-}
+  const ld=c.createRadialGradient(mx,my,0,mx,my,r);
+  ld.addColorStop(0,"rgba(0,0,0,0)"); ld.addColorStop(1,"rgba(0,0,0,.22)");
+  c.fillStyle=ld; c.beginPath(); c.arc(mx,my,r+.2,0,7); c.fill();
+}) as Draw);
 
-
-
-// ---------------- NeonHaze ----------------
-export function drawNeonHaze(ctx: CanvasRenderingContext2D, w: number, h: number, t: number, cx: number) {
-  const COL = ["255,80,180", "160,60,255"];
-  for (let i = 0; i < 6; i++) {
-    const bx = ((i * 300 + cx * .5) % (w + 200)) - 100;
-    const by = h * .55 + S(t * .3 + i) * 20;
-    const R = 150 + S(t * .7 + i) * 40;
-    const a = .4 + .3 * S(t * .5 + i * 2);
-    const g = ctx.createRadialGradient(bx, by, 0, bx, by, POS(R));
-    g.addColorStop(0, `rgba(${COL[i & 1]},${a})`);
-    g.addColorStop(1, "rgba(0,0,0,0)");
-    ctx.fillStyle = g;
-    ctx.fillRect(bx - R, by - R, R * 2, R * 2);
+// Neon haze (unchanged)
+addB(((c,w,h,t,cx)=>{
+  const COL=["255,80,180","160,60,255"];
+  for(let i=0;i<6;i++){
+    const bx=((i*300+cx*.5)%(w+200))-100;
+    const by=h*.55 + S(t*.3+i)*20;
+    const R = 150 + S(t*.7+i)*40;
+    const a = .4 + .3*S(t*.5+i*2);
+    const g = c.createRadialGradient(bx,by,0,bx,by,POS(R));
+    g.addColorStop(0,`rgba(${COL[i&1]},${a})`);
+    g.addColorStop(1,"rgba(0,0,0,0)");
+    c.fillStyle=g; c.fillRect(bx-R,by-R,R*2,R*2);
   }
-}
+}) as Draw);

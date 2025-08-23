@@ -23,9 +23,7 @@ export const MenuScene = {
   _spd: 36,     // pixels/sec in world (same as before)
 
   // Use Environment with menu-flavored parallax rows (keeps original look)
-  _env: new Environment({
-
-  }),
+  _env: new Environment(),
 
   setCanvas(ctx:CanvasRenderingContext2D){ this.__ctx = ctx; },
   setAnimator(a:AtlasAnimator){ this._anim = a; this._pos = null; },
