@@ -2,7 +2,6 @@
 import type { AtlasAnimator } from "../../animation/AtlasAnimator";
 import { drawText } from "../font/fontEngine";
 import { Environment } from "./background/Environment";
-import { setDrawHz } from "./SceneManager";
 
 const HINT = "CLICK / TAP TO START!";
 
@@ -47,8 +46,7 @@ export const MenuScene = {
     if (c) c.imageSmoothingEnabled = false;
     addEventListener("click", () => this.onClick?.(), { once:true });
 
-    // keep a stable render rate for consistent interpolation
-    setDrawHz(165);
+
   },
 
   // NOTE: SceneManager runs update() at a fixed sim dt (default 1/50s).

@@ -6,7 +6,10 @@
 //  - pushByHit: offset that accounts for the player's half-extent (+ optional pad)
 
 import type { Cam } from "../../camera/Camera";
-import type { Ori } from "../../objects/portals/Portals"; // If you unified to 'portal.ts', point this import there.
+
+// Define or import the Ori type
+export type Ori = "R" | "L" | "U" | "D";
+
 
 /** Screen(client) → world, honoring canvas CSS scale & camera center. */
 export const s2w = (x: number, y: number, c: HTMLCanvasElement, cam: Cam) => {
