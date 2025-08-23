@@ -33,11 +33,7 @@ const vapor=(seed:number, par:number, base:number, amp:number, ci:number, step=4
   }
 };
 
-// ✅ order:
-//   - vapor backdrop: back (behind everything)
-//   - mountains: mid (between row 1 and row 2)
-addB(vapor(4,.22,.45,90,8));
-addM(mountain(11,.18,.70,28,1,2));
-addM(mountain(23,.28,.76,20,3,4));
-
-// (optional) if you add front fog/mist, register it with addF(...) so it draws after row 2.
+// order: vapor behind everything; mountains between rows
+addB(vapor(4,.22,.45,90, 6));       // backdrop dots colored with palette index 6
+addM(mountain(11,.18,.70,28, 8, 9)); // far mountains (top/bot 8/9)
+addM(mountain(23,.28,.76,20, 10,11)); // mid mountains (top/bot 10/11)

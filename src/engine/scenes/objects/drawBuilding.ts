@@ -1,5 +1,5 @@
 // src/engine/scenes/objects/drawBuilding.ts
-import { poly, clamp, vstrip, hband, antenna, col } from "../u";
+import { poly, clamp, vstrip, hband, antenna } from "../u";
 
 export type BV = {
   h:number; colsLeft:number; colsRight?:number; rows:number;
@@ -23,13 +23,16 @@ const columns=(c:CanvasRenderingContext2D,x:number,y:number,cL:number,cR:number,
       vstrip(c,bx,y,fw,dm, lx/fw, (lx+.5)/fw, y0, y1-y0, ci, dep);
     }
   };
-  draw(cL,x,        fwL, 1, 9);  // #444
-  draw(cR,x+side,   fwR,-1, 8);  // #333
+  // use palette greys (17 = #444, 16 = #333)
+  draw(cL,x,        fwL, 1, 17);
+  draw(cR,x+side,   fwR,-1, 16);
 };
 
 const windows=(c:CanvasRenderingContext2D,x:number,y:number,v:BV,cL:number,cR:number,fwL:number,fwR:number,side:number,fh:number,dep:number)=>{
   const vMar=fh*.08, faceH=fh-vMar*2;
-  const baseL=v.wallLeftColor??col(5), baseR=v.wallRightColor??col(6);
+  // base wall hues are HSL from init; keep literals for bands (tiny, compress well)
+  const baseL=v.wallLeftColor ?? "#2a2a2f";
+  const baseR=v.wallRightColor ?? "#232327";
   const d1="#1b1b20", d2="#16161a", m1="#34343b", m2="#2a2a30";
 
   const seed=(n:number)=>((Math.sin(n*12.9898)*43758.5453)%1+1)%1;
@@ -37,10 +40,8 @@ const windows=(c:CanvasRenderingContext2D,x:number,y:number,v:BV,cL:number,cR:nu
   const s=seed(sSeed), r=(s*997)|0, vid=r%5;
 
   const face=(cols:number,bx:number,by:number,fw:number,dm:number,base:string)=>{
-    // base wash
     hband(c,bx,by,fw,dm,by+vMar,faceH, base, dep);
 
-    // horizontal bands
     const nB=vid===1?12+(r%8):vid===0?4+(r%3):vid===4?2+(r%2):vid===2?3+(r%4):0;
     const bh=vid===1?faceH/(nB*1.8):vid===0?faceH*.12:vid===4?faceH*.09:vid===2?faceH*.13:0;
     for(let i=0;i<nB;i++){
@@ -80,19 +81,24 @@ export function drawBuilding(c:CanvasRenderingContext2D,x:number,y:number,v:BV,t
   const WIN=8,GAP=6, cL=v.colsLeft, cR=v.colsRight??cL;
   const fwL=cL*WIN+(cL-1)*GAP, fwR=cR*WIN+(cR-1)*GAP, fh=v.h, side=fwL*.5, dep=fh*.03;
 
-  walls(c,x,y,fwR,side,fh,dep, 7, 8);   // #333 / #222
+  // faces: L=#333 (16), R=#222 (15)
+  walls(c,x,y,fwR,side,fh,dep, 16, 15);
   if(v.columns) columns(c,x,y,cL,cR,fwL,fwR,side,fh,dep);
+
   windows(c,x,y,v,cL,cR,fwL,fwR,side,fh,dep);
 
+  // roof pieces: 19=#666 mid, 17=#444, 16=#333, 18=#555
   const tr:any=(c as any).getTransform?c.getTransform():{d:1}, ey=.75/tr.d, fwSum=side+fwR;
-  poly(c,11,[[x,y+ey],[x+fwL,y-dep],[x+fwSum,y+ey],[x+side,y+dep+ey]]); // #666 mid
+  poly(c,19,[[x,y+ey],[x+fwL,y-dep],[x+fwSum,y+ey],[x+side,y+dep+ey]]);
   if(!v.hat) return;
+
   const pad=(v as any).hatOverhangPx ?? clamp(Math.round(side*.08),3,8);
   const hh =(v as any).hatHeightPx  ?? clamp(Math.round(dep*.55),6,12);
-  poly(c,9, [[x-pad,y-hh],[x,y+ey],[x+side,y+dep+ey],[x+side,y-hh+dep]]);         // #444
-  poly(c,7, [[x+side,y-hh+dep],[x+side,y+dep+ey],[x+fwSum,y+ey],[x+fwSum+pad,y-hh]]); // #333
-  poly(c,10,[[x-pad,y-hh+ey],[x+fwL,y-hh-dep+ey],[x+fwSum+pad,y-hh+ey],[x+side,y-hh+dep+ey]]); // #555
+
+  poly(c,17,[[x-pad,y-hh],[x,y+ey],[x+side,y+dep+ey],[x+side,y-hh+dep]]);
+  poly(c,16,[[x+side,y-hh+dep],[x+side,y+dep+ey],[x+fwSum,y+ey],[x+fwSum+pad,y-hh]]);
+  poly(c,18,[[x-pad,y-hh+ey],[x+fwL,y-hh-dep+ey],[x+fwSum+pad,y-hh+ey],[x+side,y-hh+dep+ey]]);
 
   if(v.hasAntenna && v.antennaHeight && v.antennaRungs)
-    antenna(c,x+fwL*.5,y-hh+ey,v.antennaHeight,v.antennaRungs,t,9,(v.blinkOffset??0));
+    antenna(c,x+fwL*.5,y-hh+ey,v.antennaHeight,v.antennaRungs,t,17,(v.blinkOffset??0));
 }

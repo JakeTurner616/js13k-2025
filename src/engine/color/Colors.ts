@@ -18,7 +18,14 @@ export const P = (
   '#0e111c,'+       // 11 mid mtn bot
   '#eef1fb,'+       // 12 moon disc hi
   '#d9dcec,'+       // 13 moon disc mid
-  '#b7bed2'         // 14 moon disc low
+  '#b7bed2,'+       // 14 moon disc low
+  '#222,'+          // 15 neutral dark (building R face)
+  '#333,'+          // 16 neutral
+  '#444,'+          // 17 neutral
+  '#555,'+          // 18 neutral
+  '#666,'+          // 19 neutral
+  '#0003,'+         // 20 subtle shadow band
+  '#0004'           // 21 edge band
 ).split(',');
 
 /** Neon RGB pairs for haze (use with rgba()). */

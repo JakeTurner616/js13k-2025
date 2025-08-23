@@ -4,7 +4,7 @@
 import "../effects";
 import "../effects/terrain/Terrain";
 
-import { layersBack, layersMid, layersFront } from "../u";
+import { layersBack, layersMid, layersFront, col } from "../u";
 
 import { drawBuilding, type BV } from "../objects/drawBuilding";
 import { generateBuildingVariants } from "../init/initBuildingVariants";
@@ -27,12 +27,12 @@ export class Environment {
   draw(c:CanvasRenderingContext2D, time:number, bgX:number){
     const { width:w, height:h } = c.canvas;
 
-    // background gradient
+    // background gradient via palette (4..7)
     const g=c.createLinearGradient(0,0,0,h);
-    g.addColorStop(0,"#090016");
-    g.addColorStop(.4,"#250040");
-    g.addColorStop(.8,"#1a1d2f");
-    g.addColorStop(1,"#0b0c12");
+    g.addColorStop(0, col(4));
+    g.addColorStop(.4, col(5));
+    g.addColorStop(.8, col(6));
+    g.addColorStop(1, col(7));
     c.fillStyle=g;
     c.fillRect(0,0,w,h);
 
@@ -56,7 +56,7 @@ export class Environment {
       c.restore();
     };
 
-    // rows + mid/terrain
+    // rows + mid (mountains/terrain)
     row(this.rows[0]);
     for(const d of layersMid) d(c,w,h,time,bgX);
     row(this.rows[1]);
