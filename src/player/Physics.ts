@@ -1,6 +1,6 @@
 // src/player/Physics.ts
 import { getCurrentMap } from "../engine/renderer/MapContext";
-import { WORLD_G } from "./core/math";
+import { G, T as S } from "./Core";
 
 export type Vec2 = { x:number; y:number };
 
@@ -14,18 +14,24 @@ export interface PhysicsBody {
   bounce?:number;
   collide?:boolean;
 
+  // public
   touchL?: boolean;
   touchR?: boolean;
+
+  // mangle-friendly mirrors
+  _touchL?: boolean;
+  _touchR?: boolean;
+
   cling?: boolean;
   clingSlide?: number;
 
-  // -1 = left, +1 = right, 0 = none (new wall impact this tick)
+  // -1 = left, +1 = right, 0 = none
   hitWall?: number;
+  _hitWall?: number;
 }
 
 export interface TileMapLike { width:number; height:number; tiles:number[]|Uint32Array; }
 
-const G = WORLD_G, S = 16;
 const AIR = 0.002, GFRIC = 0.08;
 const CEIL = 0.25;
 
@@ -47,7 +53,9 @@ export const applyPhysics = (
 
   // reset contacts
   b.touchL = b.touchR = false;
+  b._touchL = b._touchR = false;
   b.hitWall = 0;
+  b._hitWall = 0;
 
   // integrate
   const g = (b.gravity === undefined ? G : b.gravity);
@@ -57,11 +65,10 @@ export const applyPhysics = (
   // damping
   b.vel.x *= 1 - (b.grounded ? GFRIC : AIR);
 
-  // clamp velocity
-  if (b.vel.x >  VX_MAX) b.vel.x =  VX_MAX;
-  if (b.vel.x < -VX_MAX) b.vel.x = -VX_MAX;
-  if (b.vel.y >  VY_MAX) b.vel.y =  VY_MAX;
-  if (b.vel.y < -VY_MAX) b.vel.y = -VY_MAX;
+  // clamp velocity (local helper aids minification)
+  const c=(v:number,lo:number,hi:number)=> v<lo?lo : v>hi?hi : v;
+  b.vel.x = c(b.vel.x, -VX_MAX, VX_MAX);
+  b.vel.y = c(b.vel.y, -VY_MAX, VY_MAX);
 
   const collisionsEnabled = (b.collide !== false) && !!m;
 
@@ -94,11 +101,17 @@ export const applyPhysics = (
   const vx = b.vel.x;
   if (vx) {
     b.pos.x += vx;
-    if (hitAny && hitAny()) {
+    if (hitAny?.()) {
       b.pos.x -= vx;
-      if (vx > 0) { b.touchR = true; b.hitWall = +1; } else { b.touchL = true; b.hitWall = -1; }
+      if (vx > 0) {
+        b.touchR = b._touchR = true;
+        b.hitWall = b._hitWall = +1;
+      } else {
+        b.touchL = b._touchL = true;
+        b.hitWall = b._hitWall = -1;
+      }
       b.vel.x = 0;
-      b.vel.y = 0;      // glue vertical on the catch tick (keeps stick-to-wall feel)
+      b.vel.y = 0;      // glue vertical on the catch tick (stick-to-wall feel)
       b.grounded = false;
     }
   }
@@ -107,7 +120,7 @@ export const applyPhysics = (
   const vy = b.vel.y;
   if (vy) {
     b.pos.y += vy;
-    if (hitAny && hitAny()) {
+    if (hitAny?.()) {
       b.pos.y -= vy;
       if (vy > 0) {                 // landing
         b.vel.y = 0; b.grounded = true;

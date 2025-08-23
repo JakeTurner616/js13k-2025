@@ -21,8 +21,8 @@ type EnvOpts = {
 };
 
 const DEFAULT_ROWS: Readonly<RowInit[]> = [
-  { min:80, max:250, sc:.60, sp:.08, gap:120, lift:30,  bias:.95 },
-  { min:70, max:200, sc:.82, sp:.15, gap:136, lift:42,  bias:1.05 }
+      { min:70, max:190, sc:.66, sp:.39, gap:118, lift:26, bias:.98 },
+      { min:60, max:160, sc:.86, sp:.57, gap:132, lift:38, bias:1.04 }
 ] as const;
 
 export class Environment {

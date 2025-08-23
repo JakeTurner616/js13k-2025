@@ -24,11 +24,7 @@ export const MenuScene = {
 
   // Use Environment with menu-flavored parallax rows (keeps original look)
   _env: new Environment({
-    rows: [
-      { min:70, max:190, sc:.66, sp:.39, gap:118, lift:26, bias:.98 },
-      { min:60, max:160, sc:.86, sp:.57, gap:132, lift:38, bias:1.04 }
-    ],
-    vaporArgs: [7, .12, .60, 84, "#131824", 4]
+
   }),
 
   setCanvas(ctx:CanvasRenderingContext2D){ this.__ctx = ctx; },

@@ -1,7 +1,7 @@
 // src/engine/scenes/init/initBuildingVariants.ts
 import type { BuildingVariant } from "../objects/types";
-import { clamp } from "../../../player/core/math";
 
+// tiny local helpers (byte-lean)
 const R=Math.random,f=Math.floor;
 const ri=(a:number,b:number)=>f(a+R()*(b-a+1));
 const p =(q:number)=>R()<q;
@@ -44,19 +44,18 @@ export function generateBuildingVariants(
   for(let i=0;i<n;i++){
     const cL = pickColsLeft();
     const rectangular = p(.7);
-    const cRraw = clamp(cL + (p(.5)?1:-1), 2, 8);
-    const cR = rectangular ? undefined : cRraw;
+    const cR = rectangular ? undefined : cL + (p(.5)?1:-1);
 
     const hRaw = minH + Math.pow(R(), .65) * (maxH - minH);
-    const h = f(clamp(hRaw * heightMul, minH, maxH));
+    const h = f(hRaw * heightMul);
     const rows = Math.max(1, f(h/28));
 
     const hat=p(.5), columns=p(.6), sills=p(.8);
     const groundOffset=ri(-5,5), hasAntenna=hat && p(.4);
 
     const base=walls[ri(0,walls.length-1)];
-    const wl=hsl(jit(base.h,3), clamp(jit(base.s,2),0,100), clamp(jit(base.ll,2),0,100));
-    const wr=hsl(jit(base.h,3), clamp(jit(base.s,2),0,100), clamp(jit(base.lr,2),0,100));
+    const wl=hsl(jit(base.h,3), jit(base.s,2), jit(base.ll,2));
+    const wr=hsl(jit(base.h,3), jit(base.s,2), jit(base.lr,2));
 
     out.push({
       h, rows,
