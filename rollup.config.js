@@ -1,115 +1,123 @@
 // rollup.config.js
-
 import typescript from "@rollup/plugin-typescript";
 import { terser } from "rollup-plugin-terser";
-import { visualizer } from "rollup-plugin-visualizer";
 import glsl from "rollup-plugin-glsl";
+import { visualizer } from "rollup-plugin-visualizer";
 import fs from "fs";
 import path from "path";
 
-/**
- * Plugin to copy static assets from public/ to dist/
- */
+const ANALYZE = process.env.ANALYZE === "1";
+
 function copyPublicFolder() {
   return {
     name: "copy-public-folder",
     buildStart() {
-      const srcDir = path.resolve("public");
-      const destDir = path.resolve("dist");
-      if (!fs.existsSync(srcDir)) return;
-      if (!fs.existsSync(destDir)) fs.mkdirSync(destDir, { recursive: true });
-      for (const file of fs.readdirSync(srcDir)) {
-        const srcFile = path.join(srcDir, file);
-        const destFile = path.join(destDir, file);
-        fs.copyFileSync(srcFile, destFile);
-      }
+      const src = path.resolve("public");
+      const dst = path.resolve("dist");
+      if (!fs.existsSync(src)) return;
+      if (!fs.existsSync(dst)) fs.mkdirSync(dst, { recursive: true });
+      for (const f of fs.readdirSync(src)) fs.copyFileSync(path.join(src, f), path.join(dst, f));
     }
   };
 }
 
 export default {
   input: "src/main.ts",
+  inlineDynamicImports: true,
   output: {
-    file: "dist/tmp.js", // output before Roadroller
-    format: "iife"
+    file: "dist/tmp.js",
+    format: "iife",
+    compact: true,
+    esModule: false,
+    generatedCode: { constBindings: true, arrowFunctions: true },
+    minifyInternalExports: true,
+    preferConst: true
+  },
+  treeshake: {
+    annotations: true,
+    moduleSideEffects: false,
+    propertyReadSideEffects: false,
+    tryCatchDeoptimization: false,
+    unknownGlobalSideEffects: false
+  },
+  onwarn(w, warn) {
+    if (w.code === "THIS_IS_UNDEFINED") return;
+    warn(w);
   },
   plugins: [
-    glsl({
-      include: ["**/*.glsl"],
-      compress: true
+    glsl({ include: ["**/*.glsl"], compress: true }),
+
+    typescript({
+      target: "ES2020",
+      module: "ESNext",
+      importHelpers: false,
+      noEmitHelpers: true,
+      sourceMap: false,
+      inlineSources: false,
+      include: ["src/**/*.ts"],
+      removeComments: true
     }),
-typescript({
-  target: "ESNext",
-  module: "ESNext",
-  noEmitHelpers: true,
-  importHelpers: false,
-  // Only compile .ts files so Tiled XML (.tsx) isn't parsed as TSX
-  include: ["src/**/*.ts"],
-  // (optional) if you must keep other TS files broad, you can instead:
-  // exclude: ["src/maps/tileset/**"]
-}),
 
     terser({
+      ecma: 2020,
+      module: true,
+      safari10: false,
       compress: {
-        passes: 22,
-        unsafe: true,
-        unsafe_math: true,
-        unsafe_comps: true,
-        unsafe_undefined: true,
-        collapse_vars: true,
-        reduce_funcs: true,
-        reduce_vars: true,
+        passes: 3,
         drop_console: true,
         drop_debugger: true,
         toplevel: true,
-        pure_getters: true,
+        // define prod flags here instead of @rollup/plugin-replace
+        global_defs: {
+          "process.env.NODE_ENV": "production",
+          __DEV__: false,
+          DEBUG: false
+        },
+
+        unsafe: true,
         unsafe_arrows: true,
+        unsafe_comps: true,
+        unsafe_Function: true,
+        unsafe_math: true,
         unsafe_methods: true,
         unsafe_proto: true,
         unsafe_regexp: true,
 
-        hoist_funs: true,
-        hoist_props: true,
-        hoist_vars: true,
-        inline: true,
-        ecma: 2020,
-        module: true,
-        keep_fargs: false,
-        keep_fnames: false,
-        keep_infinity: false,
+        pure_getters: true,
         side_effects: true,
-        switches: true,
-        typeofs: false,
-        sequences: true,
-        conditionals: true,
-        dead_code: true,
         evaluate: true,
-        if_return: true,
-        join_vars: true,
-        comparisons: true,
-        booleans: true,
         loops: true,
-        unused: true
+        conditionals: true,
+        booleans: true,
+        comparisons: true,
+        sequences: true,
+        if_return: true,
+        inline: 3,
+        reduce_funcs: true,
+        reduce_vars: true,
+        collapse_vars: true,
+        hoist_funs: true,
+        hoist_props: true
       },
       mangle: {
         toplevel: true,
-        properties: {
-          regex: /^_/
-        }
+        properties: { regex: /^_/ }
       },
-      format: {
-        comments: false,
-        ascii_only: true
-      }
+      format: { comments: false, ascii_only: true }
     }),
 
-    visualizer({
+    // ⬇️ Analyzer: runs at build-time only; emits dist/stats.html
+    ANALYZE && visualizer({
       filename: "dist/stats.html",
-      title: "Bundle Visualizer",
+      title: "JS13k Bundle Analysis",
+      template: "treemap",   // also try "sunburst" or "network"
+      gzipSize: true,
+      brotliSize: true,
       sourcemap: false,
-      template: "treemap"
+      emitFile: false,       // write directly to dist/
+      open: true             // auto-open in browser when ANALYZE=1
     }),
 
     copyPublicFolder()
-  ]
+  ].filter(Boolean)
 };

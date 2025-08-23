@@ -6,6 +6,7 @@
   "scripts": {
     "dev": "vite",
     "build": "rollup -c && node tools/compress.js && node tools/inline-html.js",
+    "analyze": "cross-env ANALYZE=1 rollup -c",
     "zip": "cross-zip dist js13k.zip",
     "encode": "node scripts/encode-png.js",
     "preview": "vite preview"
@@ -15,6 +16,7 @@
     "@rollup/plugin-node-resolve": "^16.0.1",
     "@rollup/plugin-typescript": "^12.1.4",
     "@types/pako": "^2.0.3",
+    "cross-env": "^7.0.3",
     "cross-zip-cli": "^1.0.0",
     "pako": "^2.1.0",
     "roadroller": "^2.1.0",
@@ -28,7 +30,6 @@
     "vite": "^7.0.4"
   },
   "dependencies": {
-    "fflate": "^0.8.2",
-    "tiny-inflate": "^1.0.3"
+
   }
 }
