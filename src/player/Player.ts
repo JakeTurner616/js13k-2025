@@ -1,8 +1,12 @@
 // src/player/Player.ts
-// Fixed: use performance.now() (same timebase as `t` in draw) so death anim advances.
+// Player w/ tiny “celebrate win” state: plays death anim (no respawn) for a few frames.
+// Also keeps the merged aim controls from earlier (rotate L/R, power U/D + auto).
 
 import { applyPhysics } from "./Physics";
-import { AN,A,ST,G,cos,sin,badAim,face,pre as preFSM,post as postFSM,setAnim } from "./Core";
+import {
+  AN,A,ST,G,cos,sin,badAim,face,
+  pre as preFSM, post as postFSM, setAnim, enter as enterFSM
+} from "./Core";
 import { zzfx } from "../engine/audio/SoundEngine";
 
 // sfx (keep any to dodge types)
@@ -24,10 +28,11 @@ export function createPlayer(a:Animator,hooks:PlayerHooks={}){
   const p={
     body:b,_st:ST.G as State,_anim:0,_face:1 as 1|-1,
     _wasJ:false,_aim:false,_side:1 as 1|-1,_ang:Math.PI*.6,
-    _pow:3.5,_min:2,_max:8,_charge:.14,_angStep:.0349, // ~2° rad
+    _pow:3,_min:1.8,_max:6.5,_charge:.11,_angStep:.0349, // ~2° rad
     _bad:false,_det:0,_noCling:0,_portT:0,_touchPort:false,
     _dead:false,_deathT:0,_respawn:84,_spawn:{x:64,y:24},
     _t0:performance.now(),
+    _winT:0, // frames to keep “celebrate” anim active
     setAnimation:()=>{p._t0=performance.now()}
   };
 
@@ -35,6 +40,14 @@ export function createPlayer(a:Animator,hooks:PlayerHooks={}){
   const setSpawn=(x:number,y:number)=>{p._spawn.x=x|0;p._spawn.y=y|0};
   function setLevelBounds(wTiles:number,hTiles:number,canvasH:number,tile=16){
     const top=canvasH-hTiles*tile; L.top=top|0; L.bottom=(top+hTiles*tile)|0; L.right=(wTiles*tile)|0; L.on=true;
+  }
+
+  /** Trigger “win” celebration: show death anim + freeze movement briefly. */
+  function celebrateWin(t=66){
+    if(p._winT>0||p._dead) return;
+    p._winT=t|0;
+    b.vel.x=b.vel.y=0; b.gravity=0; b.collide=false; b.grounded=false; b.cling=false;
+    setAnim(p,A.death);
   }
 
   const respawn=()=>{
@@ -55,8 +68,11 @@ export function createPlayer(a:Animator,hooks:PlayerHooks={}){
     hooks.onDeath?.(reason);
   };
 
-  function update(i:Partial<{left:boolean;right:boolean;jump:boolean}>,ctx:CanvasRenderingContext2D){
-    const LFT=!!i.left,RGT=!!i.right,J=!!i.jump,rel=!J&&p._wasJ;
+  function update(i:Partial<{left:boolean;right:boolean;up:boolean;down:boolean;jump:boolean}>,ctx:CanvasRenderingContext2D){
+    const LFT=!!i.left,RGT=!!i.right,U=!!i.up,D=!!i.down,J=!!i.jump, rel=!J&&p._wasJ;
+
+    // celebration: let anim tick, ignore controls
+    if(p._winT>0){ p._winT--; p._wasJ=J; return; }
 
     p._portT>0 && p._portT--;
     p._touchPort=p._portT>0;
@@ -67,10 +83,16 @@ export function createPlayer(a:Animator,hooks:PlayerHooks={}){
     const anchoredPre=b.grounded||p._st===ST.C;
     if(p._aim&&anchoredPre&&rel){
       const vx=cos(p._ang)*p._pow, vy=-sin(p._ang)*p._pow, onWall=!!(b._touchL||b._touchR)||p._st===ST.C;
-      if(badAim(vx,vy,p._side,onWall)){ zzfx?.(...BAD); p._bad=true; p._wasJ=false; }
+      if(badAim(vx,vy,p._side,onWall)){
+        try{ zzfx?.(...BAD) }catch{}
+        p._bad=true;
+        // nice touch: bad-release while clinging? immediately drop to FALL
+        if(p._st===ST.C) enterFSM(p,ST.F,false);
+        p._wasJ=false;
+      }
     }
 
-    preFSM(p,{left:LFT,right:RGT,jump:J},!!(b._touchL||b._touchR));
+    preFSM(p,{left:LFT,right:RGT,up:U,down:D,jump:J},!!(b._touchL||b._touchR));
     applyPhysics(b,ctx);
 
     const anchored=b.grounded||p._st===ST.C;
@@ -106,8 +128,8 @@ export function createPlayer(a:Animator,hooks:PlayerHooks={}){
   function onTeleported(_:"R"|"L"|"U"|"D"){
     if(p._dead) return;
     b.grounded=b._touchL=b._touchR=false; b.cling=false; b.gravity=undefined;
-    p._aim=false; p._det=4; p._noCling=8; setTouchingPortal(true,3); p._st=ST.F as State;
+    p._aim=false; p._det=4; p._noCling=8; p._portT=3; p._st=ST.F as State;
   }
 
-  return {body:b,update,draw,onTeleported,setTouchingPortal,setSpawn,setLevelBounds,respawn};
+  return {body:b,update,draw,onTeleported,setTouchingPortal,setSpawn,setLevelBounds,respawn,celebrateWin};
 }

@@ -22,7 +22,8 @@ export const face=(prev:1|-1,isCling:boolean,anchored:boolean,aiming:boolean,cli
 // states
 export const ST={G:0,F:1,C:2} as const;
 
-type CoreInput={left:boolean;right:boolean;jump:boolean};
+// include up/down for POWER; left/right for ROTATION
+type CoreInput={left:boolean;right:boolean;up?:boolean;down?:boolean;jump:boolean};
 const clamp=(n:number,a:number,b:number)=>n<a?a:n>b?b:n;
 
 // Guarded anim setter: index → name via AN
@@ -43,7 +44,8 @@ export const enter=(p:any,n:number,useAim?:boolean)=>{
   }
   // ST.F
   p._det=useAim?2:0; b.grounded=false; b.gravity=undefined; b.cling=false;
-  if(useAim){ const a=p._ang,v=p._pow; b.vel.x=cos(a)*v; b.vel.y=-sin(a)*v; setAnim(p,A.dash); p._pow=p._min; }
+  // reduced launch strength (scale p._pow)
+  if(useAim){ const a=p._ang,v=p._pow*.85; b.vel.x=cos(a)*v; b.vel.y=-sin(a)*v; setAnim(p,A.dash); p._pow=p._min; }
   else setAnim(p,b.vel.y>0?A.fall:A.jump);
 };
 
@@ -52,8 +54,20 @@ export const aim=(p:any,i:CoreInput,onWall:boolean)=>{
   const b=p.body, can=!p._noCling && !p._touchPort && (onWall || p._st===ST.C);
   p._aim=true; setAnim(p,can?A.ledge:A.idle);
   if(can){ b.gravity=0; b.vel.x=p._side*.6; b.vel.y=0; } else b.vel.x=b.vel.y=0;
-  p._ang=clamp(p._ang+(i.left?+p._angStep:0)-(i.right?+p._angStep:0), .05, PI-.05);
-  p._pow=clamp(p._pow+p._charge, p._min, p._max);
+
+  const s=p._angStep, ch=p._charge;
+
+  // ROTATION: ←/→ rotates the arc
+  p._ang=clamp(p._ang+(i.left?+s:0)-(i.right?+s:0), .05, PI-.05);
+
+  // MERGED POWER SYSTEM:
+  // - auto-charge always ticks forward by +ch
+  // - Up speeds it up (+ch extra)
+  // - Down pulls it back enough to *overcome* auto (−2ch → cancels + goes backward)
+  let d=ch;                 // auto forward tick (old behavior)
+  if(i.up)   d+=ch;         // faster forward
+  if(i.down) d-=ch*2;       // cancel + go backward
+  p._pow=clamp(p._pow+d, p._min, p._max);
 };
 
 // pre-physics
