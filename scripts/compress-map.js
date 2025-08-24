@@ -1,65 +1,68 @@
 // scripts/compress-map.js
-// Super tiny: RLE-compress the first tile layer -> src/levels/level1.ts
-// (Optional) write a debug JSON with the RLE blob baked in.
+// Tiny dual-map preprocessor: RLE-compress first tile layer of map.json + map2.json
+// → emits src/levels/{level1,level2}.ts and debug JSONs with baked RLE strings.
+//
+// Format: bytes = [value, run] pairs (run<=255), then base64.
+// Runtime decoder expands to Uint32Array (see level-loader.ts).
 
 import fs from "fs";
 import path from "path";
 
-const inputPath      = "src/maps/map.json";
-const outputJsonPath = "src/maps/map.rle.json";
-const outputTsPath   = "src/levels/level1.ts";
+// --- I/O table (add more rows for more levels) ---
+const MAPS = [
+  { in:"src/maps/map.json",  outJson:"src/maps/map.rle.json",  outTs:"src/levels/level1.ts", prefix:"LEVEL_1" },
+  { in:"src/maps/map2.json", outJson:"src/maps/map2.rle.json", outTs:"src/levels/level2.ts", prefix:"LEVEL_2" }
+];
 
-// -------------------- RLE helpers --------------------
-function compressLayerData(data) {
-  const out = [];
-  let i = 0;
-  while (i < data.length) {
-    const v = data[i];
-    let run = 1;
-    while (i + run < data.length && data[i + run] === v && run < 255) run++;
-    out.push(v, run);
-    i += run;
+// --- tiny helpers ---
+const b64 = u8 => Buffer.from(u8).toString("base64");
+function rle(data){ // compress [v,v,v,...] → [v,run,v,run,...]
+  const out=[]; let i=0;
+  while(i<data.length){
+    const v=data[i]; let n=1;
+    while(i+n<data.length && data[i+n]===v && n<255) n++;
+    out.push(v,n); i+=n;
   }
   return out;
 }
 
-function encodeBase64RLE(u8) {
-  return Buffer.from(u8).toString("base64");
-}
-
-// -------------------- main --------------------
-async function main() {
-  // read map.json
-  const raw = fs.readFileSync(inputPath, "utf8");
+// compress one Tiled JSON: first tilelayer only
+function processOne(cfg){
+  const raw = fs.readFileSync(cfg.in, "utf8");
   const map = JSON.parse(raw);
 
-  // RLE compress first tilelayer only (extend later if needed)
-  let compressedBase64 = "";
-  for (const layer of map.layers) {
-    if (layer.type === "tilelayer" && Array.isArray(layer.data)) {
-      const rle = compressLayerData(layer.data);
-      compressedBase64 = encodeBase64RLE(Uint8Array.from(rle));
-      layer.data = compressedBase64;
-      layer.encoding = "base64-rle";
+  let base64="";
+  for(const layer of map.layers){
+    if(layer.type==="tilelayer" && Array.isArray(layer.data)){
+      const u8 = Uint8Array.from(rle(layer.data));
+      base64 = b64(u8);
+      layer.data = base64;           // bake the RLE string for reference
+      layer.encoding = "base64-rle"; // mark custom encoding
       break;
     }
   }
 
-  // Persist RLE’d map (debug/reference)
-  fs.writeFileSync(outputJsonPath, JSON.stringify(map));
+  // debug JSON (nice to inspect after baking)
+  fs.mkdirSync(path.dirname(cfg.outJson), { recursive:true });
+  fs.writeFileSync(cfg.outJson, JSON.stringify(map));
 
-  // Write level1.ts payload
-  fs.mkdirSync(path.dirname(outputTsPath), { recursive: true });
+  // TS payload for runtime
+  fs.mkdirSync(path.dirname(cfg.outTs), { recursive:true });
   fs.writeFileSync(
-    outputTsPath,
-`export const LEVEL_1_BASE64="${compressedBase64}";
-export const LEVEL_1_WIDTH=${map.width};
-export const LEVEL_1_HEIGHT=${map.height};
+    cfg.outTs,
+`export const ${cfg.prefix}_BASE64="${base64}";
+export const ${cfg.prefix}_WIDTH=${map.width};
+export const ${cfg.prefix}_HEIGHT=${map.height};
 `
   );
 
-  console.log(`✔ LEVEL_1_BASE64 written to: ${outputTsPath}`);
-  console.log(`✔ RLE-compressed JSON written to: ${outputJsonPath}`);
+  console.log(`✔ ${cfg.prefix} written → ${cfg.outTs}`);
+  console.log(`✔ debug JSON → ${cfg.outJson}`);
 }
 
-main().catch(e => { console.error(e); process.exit(1); });
+// --- main ---
+(async()=>{
+  try{
+    for(const cfg of MAPS) processOne(cfg);
+  }catch(e){ console.error(e); process.exit(1); }
+})();
