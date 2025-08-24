@@ -1,61 +1,44 @@
 // src/engine/scenes/background/sceneUtils.ts
-// Utilities used by PortalSystem:
-//  - s2w:    screen (client) → world coords using camera center
-//  - tb/fb:  transform vectors to/from a portal's local basis (normal/tangent)
-//  - push:   small offset along portal normal
-//  - pushByHit: offset that accounts for the player's half-extent (+ optional pad)
+// screen↔world + portal basis ops (branchless via lookup tables)
 
 import type { Cam } from "../../camera/Camera";
+export type Ori="R"|"L"|"U"|"D";
 
-// Define or import the Ori type
-export type Ori = "R" | "L" | "U" | "D";
-
-
-/** Screen(client) → world, honoring canvas CSS scale & camera center. */
-export const s2w = (x: number, y: number, c: HTMLCanvasElement, cam: Cam) => {
-  const r = c.getBoundingClientRect();
-  // map CSS pixel to canvas pixel
-  const sx = (x - r.left) * (c.width  / Math.max(1, r.width));
-  const sy = (y - r.top)  * (c.height / Math.max(1, r.height));
-  // camera.x/y represent world center; canvas draws centered on camera
-  return { wx: sx + (cam.x - c.width  * 0.5), wy: sy + (cam.y - c.height * 0.5) };
+// basis map: [nx,ny, tx,ty]
+const B:{[k in Ori]:[number,number,number,number]}={
+  R:[ 1, 0, 0, 1],
+  L:[-1, 0, 0, 1],
+  U:[ 0,-1, 1, 0],
+  D:[ 0, 1, 1, 0]
 };
 
-// ---- Portal-local basis transforms -----------------------------------------
-// We define a portal's local basis as:
-//   n = outward normal (positive points out of the surface)
-//   t = tangent (rightward when looking along +n)
-// Mapping by orientation:
-//   R: normal +X, tangent +Y
-//   L: normal -X, tangent +Y
-//   U: normal -Y, tangent +X
-//   D: normal +Y, tangent +X
+/** Screen(client) → world; honors CSS scale + camera center. */
+export const s2w=(x:number,y:number,c:HTMLCanvasElement,cam:Cam)=>{
+  const r=c.getBoundingClientRect(), W=c.width, H=c.height;
+  const sx=(x-r.left)*W/(r.width||1), sy=(y-r.top)*H/(r.height||1);
+  return {wx:sx+(cam.x-W*0.5), wy:sy+(cam.y-H*0.5)};
+};
 
-/** world (vx,vy) → portal basis {n,t} */
-export const tb = (vx: number, vy: number, o: Ori) =>
-  o === "R" ? { n:  vx,  t: vy } :
-  o === "L" ? { n: -vx,  t: vy } :
-  o === "U" ? { n: -vy,  t: vx } :
-              { n:  vy,  t: vx };
+// world (vx,vy) → portal basis {n,t}
+export const tb=(vx:number,vy:number,o:Ori)=>{
+  const [nx,ny,tx,ty]=B[o];
+  return {n:vx*nx+vy*ny, t:vx*tx+vy*ty};
+};
 
-/** portal basis {n,t} → world (vx,vy) */
-export const fb = (n: number, t: number, o: Ori) =>
-  o === "R" ? { vx:  n,  vy: t } :
-  o === "L" ? { vx: -n,  vy: t } :
-  o === "U" ? { vx:  t,  vy:-n } :
-              { vx:  t,  vy: n };
+// portal basis {n,t} → world (vx,vy)  (inverse = transpose for orthonormal basis)
+export const fb=(n:number,t:number,o:Ori)=>{
+  const [nx,ny,tx,ty]=B[o];
+  return {vx:n*nx+t*tx, vy:n*ny+t*ty};
+};
 
-/** Pure push along the portal normal by distance d (positive = outward). */
-export const push = (o: Ori, d: number) =>
-  o === "R" ? { dx:  d, dy:  0 } :
-  o === "L" ? { dx: -d, dy:  0 } :
-  o === "U" ? { dx:  0, dy: -d } :
-              { dx:  0, dy:  d };
+// push along portal normal by d
+export const push=(o:Ori,d:number)=>{
+  const [nx,ny]=B[o];
+  return {dx:nx*d, dy:ny*d};
+};
 
-/**
- * Push so that a rectangle with half-extent (hw,hh) clears the portal plane,
- * with an extra padding `p` (default 2px).
- * For vertical portals (R/L) we push by hw; for horizontal (U/D) by hh.
- */
-export const pushByHit = (o: Ori, hw: number, hh: number, p = 2) =>
-  (o === "R" || o === "L") ? push(o, hw + p) : push(o, hh + p);
+// push so a half-extent clears plane (+ optional pad)
+export const pushByHit=(o:Ori,hw:number,hh:number,p=2)=>{
+  const d=(o==="R"||o==="L"?hw:hh)+p;
+  return push(o,d);
+};
