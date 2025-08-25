@@ -9,7 +9,7 @@ import { Environment } from "./background/Environment";
 import { PortalSystem } from "./background/PortalSystem";
 import { playWinTune } from "../../sfx/winTune";
 
-const TILE=16, FINISH=131, LEVELS=[loadLevel1,loadLevel2];
+const TILE=16, FINISH=3, LEVELS=[loadLevel1,loadLevel2];
 let LIDX=0, ctx:CanvasRenderingContext2D|null=null;
 let env=new Environment(), portals=new PortalSystem(), player:Player|null=null;
 let cam:Cam={x:0,y:0}, bgX=0, winT=0;

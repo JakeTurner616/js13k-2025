@@ -14,7 +14,7 @@ type Ori="R"|"L"|"U"|"D";
 type Portal={k:"A"|"B";x:number;y:number;a:number;o:Ori};
 type Shot={k:"A"|"B";x:number;y:number;dx:number;dy:number;hx:number;hy:number;a:number;o:Ori;t:number;th:number;ban:boolean};
 
-const TILE=16,PW=32,PH=32,MD=2000,S=640,FORBID=134,TAU=Math.PI*2;
+const TILE=16,PW=32,PH=32,MD=2000,S=640,FORBID=2,TAU=Math.PI*2;
 const {min,sign,hypot,PI}=Math;
 const OA:Record<Ori,number>={R:0,L:0,U:PI/2,D:-PI/2}; // ori→angle
 const RGBA=["40,140,255","255,160,40"];               // A/B tints

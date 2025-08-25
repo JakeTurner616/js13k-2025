@@ -3,7 +3,7 @@
 // Tiny multi-level loader (pre-terser friendly) + FINISH-aware solids.
 // - Levels are base64-encoded (value,count) RLE pairs → Uint32Array tiles
 // - loadLevel1 / loadLevel2 wire straight into MapContext + Physics
-// - FINISH tile (131) is *excluded* from solids so portals won't stick
+// - FINISH tile (241) is *excluded* from solids so portals won't stick
 //
 // Add more levels by copying the 3 import symbols and another loadLevelN()
 // then register it in your scene switcher (BackgroundScene).
@@ -23,7 +23,7 @@ import {
 import { setSolidTiles as setSolids } from "../../player/Physics.ts";
 import { setCurrentMap as setMap, getCurrentMap as getMap } from "./MapContext.ts";
 
-const FINISH = 131; // finish tile id; must NOT be solid
+const FINISH = 241; // finish tile id; must NOT be solid
 
 /**
  * RLE(base64) decoder: bytes are [value, count] pairs.
