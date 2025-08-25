@@ -8,6 +8,7 @@ import { getInputState } from "../input/input";
 import { Environment } from "./background/Environment";
 import { PortalSystem } from "./background/PortalSystem";
 import { playWinTune } from "../../sfx/winTune";
+import { attachFPS, tickFPS, drawFPS } from "../debug/FPS"; // +++
 
 const TILE=16, FINISH=3, LEVELS=[loadLevel1,loadLevel2];
 let LIDX=0, ctx:CanvasRenderingContext2D|null=null;
@@ -40,7 +41,7 @@ function loadLevel(idx:number){
 }
 
 export const BackgroundScene={
-  setCanvas(c:CanvasRenderingContext2D){ ctx=c; },
+  setCanvas(c:CanvasRenderingContext2D){ ctx=c; attachFPS(c); }, // +++
 
   start(){
     if(!ctx) return;
@@ -93,6 +94,7 @@ export const BackgroundScene={
 
   draw(t:number){
     if(!ctx) return;
+    tickFPS(t); // +++
     const c=ctx, k=c.canvas, w=k.width, h=k.height, time=t/1000;
     env.draw(c,time,bgX);
     c.save(); c.translate((w*.5-cam.x)|0,(h*.5-cam.y)|0);
@@ -108,5 +110,6 @@ export const BackgroundScene={
     }
     player?.draw(c,t); portals.draw(c,t);
     c.restore();
+    drawFPS(); // +++
   }
 };
