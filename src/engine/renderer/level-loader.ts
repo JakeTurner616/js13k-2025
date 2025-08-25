@@ -23,7 +23,7 @@ import {
 import { setSolidTiles as setSolids } from "../../player/Physics.ts";
 import { setCurrentMap as setMap, getCurrentMap as getMap } from "./MapContext.ts";
 
-const FINISH = 241; // finish tile id; must NOT be solid
+const FINISH = 3; // finish tile id; must NOT be solid
 
 /**
  * RLE(base64) decoder: bytes are [value, count] pairs.
