@@ -13,9 +13,9 @@ export const badAim=(vx:number,vy:number)=> vy*vy<8*G && abs(vx*vy)<6*G;
 
 // Facing helper: aim direction when anchored + aiming; else based on input/vel
 export const face=(prev:1|-1,anch:boolean,aiming:boolean,ang:number,vx:number,L:boolean,R:boolean):1|-1 =>
-  (aiming&&anch)?(cos(ang)>=0?1:-1):
-  (L!==R&&anch)?(R?1:-1):
-  (vx*vx>.0025?(vx>=0?1:-1):prev);
+  (aiming&&anch)?(cos(ang)>=0?1:-1)
+  :(L!==R&&anch)?(R?1:-1)
+  :(vx*vx>.0025?(vx>=0?1:-1):prev);
 
 export const setAnim=(p:any,n:number)=>{ p._anim!==n && (p._anim=n, p.setAnimation?.(AN[n] as any)); };
 

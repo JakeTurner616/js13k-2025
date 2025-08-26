@@ -5,7 +5,8 @@
 import { applyPhysics } from "./Physics";
 import {
   AN,A,ST,G,cos,sin,badAim,face,
-  pre as preFSM, post as postFSM, setAnim} from "./Core";
+  pre as preFSM, post as postFSM, setAnim
+} from "./Core";
 import { zzfx } from "../engine/audio/SoundEngine";
 
 // sfx (keep any to dodge types)
@@ -26,10 +27,10 @@ export function createPlayer(a:Animator,hooks:PlayerHooks={}){
 
   const p={
     body:b,_st:ST.G as State,_anim:0,_face:1 as 1|-1,
-    _wasJ:false,_aim:false,_side:1 as 1|-1,_ang:Math.PI*.6,
+    _wasJ:false,_aim:false,_ang:Math.PI*.6,
     _pow:3,_min:1.8,_max:6.5,_charge:.11,_angStep:.0349, // ~2° rad
     _bad:false,
-    _dead:false,_deathT:0,_respawn: 84,_spawn:{x:64,y:24},
+    _dead:false,_deathT:0,_respawn:84,_spawn:{x:64,y:24},
     _t0:performance.now(),
     _winT:0, // frames to keep “celebrate” anim active
     setAnimation:()=>{p._t0=performance.now()}

@@ -52,7 +52,7 @@ const animations = [
   mk("jump",  10),
   mk("fall",  10),
   mk("dash",  12),
-  // mk("ledge",  6), // removed
+  // ledge removed
   mk("death",  6, 7),
   mk("portal", 8)
 ].filter(Boolean) as AnimationConfig[];
