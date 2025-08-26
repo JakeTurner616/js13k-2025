@@ -28,7 +28,6 @@ export const applyPhysics=(b:PhysicsBody,ctx:CanvasRenderingContext2D,mapOverrid
   let v=b.vel.x; if(v<-VX_MAX)v=-VX_MAX; else if(v>VX_MAX)v=VX_MAX; b.vel.x=v;
   v=b.vel.y; if(v<-VY_MAX)v=-VY_MAX; else if(v>VY_MAX)v=VY_MAX; b.vel.y=v;
 
-  // collisions always enabled if a map exists
   const enabled=!!m;
 
   // hitbox
@@ -55,7 +54,8 @@ export const applyPhysics=(b:PhysicsBody,ctx:CanvasRenderingContext2D,mapOverrid
     b.pos.x+=vx;
     if(hitAny()){
       b.pos.x-=vx;
-      b.vel.x=b.vel.y=0; b.grounded=false;
+      b.vel.x=0;          // ❗ only kill horizontal speed on wall hit
+      b.grounded=false;   // keep in-air friction
     }
   }
 
