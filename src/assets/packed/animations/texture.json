@@ -48,34 +48,10 @@
         "y": 0.5
       }
     },
-    "8_Alternative_Colour_Cat_Ledge_Grab_Idle-Sheet": {
-      "frame": {
-        "x": 0,
-        "y": 42,
-        "w": 236,
-        "h": 20
-      },
-      "rotated": false,
-      "trimmed": true,
-      "spriteSourceSize": {
-        "x": 9,
-        "y": 10,
-        "w": 236,
-        "h": 20
-      },
-      "sourceSize": {
-        "w": 256,
-        "h": 32
-      },
-      "pivot": {
-        "x": 0.5,
-        "y": 0.5
-      }
-    },
     "portals-Sheet": {
       "frame": {
         "x": 0,
-        "y": 62,
+        "y": 42,
         "w": 233,
         "h": 22
       },
@@ -99,7 +75,7 @@
     "6_Alternative_Colour_Cat_Dash-Sheet": {
       "frame": {
         "x": 0,
-        "y": 84,
+        "y": 64,
         "w": 110,
         "h": 16
       },
@@ -123,7 +99,7 @@
     "3_Alternative_Colour_Cat_Jump-Sheet": {
       "frame": {
         "x": 0,
-        "y": 100,
+        "y": 80,
         "w": 107,
         "h": 17
       },
@@ -147,7 +123,7 @@
     "4_Alternative_Colour_Cat_Fall-Sheet": {
       "frame": {
         "x": 110,
-        "y": 84,
+        "y": 64,
         "w": 107,
         "h": 18
       },
@@ -176,7 +152,7 @@
     "format": "RGBA8888",
     "size": {
       "w": 245,
-      "h": 117
+      "h": 97
     },
     "scale": 1
   }

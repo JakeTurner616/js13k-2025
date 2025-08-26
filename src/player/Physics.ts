@@ -6,9 +6,7 @@ export type Vec2={x:number;y:number};
 export interface PhysicsBody{
   pos:Vec2; vel:Vec2; acc?:Vec2;
   width:number; height:number; hit?:{x:number;y:number;w:number;h:number};
-  grounded:boolean; gravity?:number; bounce?:number; collide?:boolean;
-  touchL?:boolean; touchR?:boolean; _touchL?:boolean; _touchR?:boolean;
-  cling?:boolean; clingSlide?:number; hitWall?:number; _hitWall?:number;
+  grounded:boolean; gravity?:number; bounce?:number;
 }
 export interface TileMapLike{width:number;height:number;tiles:number[]|Uint32Array}
 
@@ -21,9 +19,6 @@ export const isSolidTileId=(id:number)=>solid.has(id);
 export const applyPhysics=(b:PhysicsBody,ctx:CanvasRenderingContext2D,mapOverride?:TileMapLike,topAligned=false)=>{
   const m=mapOverride||getCurrentMap();
 
-  b.touchL=b.touchR=b._touchL=b._touchR=false;
-  b.hitWall=b._hitWall=0;
-
   const a=b.acc, g=b.gravity??G;
   if(a){ b.vel.x+=a.x; b.vel.y+=a.y; }
   b.vel.y+=g;
@@ -33,7 +28,8 @@ export const applyPhysics=(b:PhysicsBody,ctx:CanvasRenderingContext2D,mapOverrid
   let v=b.vel.x; if(v<-VX_MAX)v=-VX_MAX; else if(v>VX_MAX)v=VX_MAX; b.vel.x=v;
   v=b.vel.y; if(v<-VY_MAX)v=-VY_MAX; else if(v>VY_MAX)v=VY_MAX; b.vel.y=v;
 
-  const enabled=b?.collide!==false && !!m;
+  // collisions always enabled if a map exists
+  const enabled=!!m;
 
   // hitbox
   const hb=b.hit, hx=hb?hb.x:0, hy=hb?hb.y:0, hw=hb?hb.w:b.width, hh=hb?hb.h:b.height;
@@ -59,8 +55,6 @@ export const applyPhysics=(b:PhysicsBody,ctx:CanvasRenderingContext2D,mapOverrid
     b.pos.x+=vx;
     if(hitAny()){
       b.pos.x-=vx;
-      if(vx>0){ b.touchR=b._touchR=true; b.hitWall=b._hitWall=+1; }
-      else    { b.touchL=b._touchL=true; b.hitWall=b._hitWall=-1; }
       b.vel.x=b.vel.y=0; b.grounded=false;
     }
   }
@@ -73,7 +67,7 @@ export const applyPhysics=(b:PhysicsBody,ctx:CanvasRenderingContext2D,mapOverrid
       b.pos.y-=vy;
       if(vy>0){ b.vel.y=0; b.grounded=true; }
       else{
-        const ny=(b.touchL||b.touchR)?0:-vy*(b.bounce??CEIL);
+        const ny=-vy*(b.bounce??CEIL);
         b.vel.y=Math.abs(ny)<.2?0:ny; b.grounded=false;
       }
     } else b.grounded=false;

@@ -52,8 +52,8 @@ const animations = [
   mk("jump",  10),
   mk("fall",  10),
   mk("dash",  12),
-  mk("ledge",  6),
-  mk("death",  6, 7), // force 7 if your strip has extra padding
+  // mk("ledge",  6), // removed
+  mk("death",  6, 7),
   mk("portal", 8)
 ].filter(Boolean) as AnimationConfig[];
 

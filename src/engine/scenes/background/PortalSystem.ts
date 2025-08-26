@@ -1,6 +1,5 @@
 // src/engine/scenes/background/PortalSystem.ts
 // input → raycast → sprite portals → teleport (A/B, ori/vel xform, cooldown, forbid gate)
-// + super tiny .reset() to nuke portals/shots/cooldown (used on level switch)
 
 import { tb, fb, pushByHit, s2w } from "./sceneUtils";
 import { getCurrentMap } from "../../renderer/level-loader";
@@ -16,21 +15,19 @@ type Shot={k:"A"|"B";x:number;y:number;dx:number;dy:number;hx:number;hy:number;a
 
 const TILE=16,PW=32,PH=32,MD=2000,S=640,FORBID=2,TAU=Math.PI*2;
 const {min,sign,hypot,PI}=Math;
-const OA:Record<Ori,number>={R:0,L:0,U:PI/2,D:-PI/2}; // ori→angle
-const RGBA=["40,140,255","255,160,40"];               // A/B tints
+const OA:Record<Ori,number>={R:0,L:0,U:PI/2,D:-PI/2};
+const RGBA=["40,140,255","255,160,40"];
 
 export class PortalSystem{
-  private A?:Portal; private B?:Portal; // planted portals
-  private Q:Shot[]=[];                  // in-flight shots
+  private A?:Portal; private B?:Portal;
+  private Q:Shot[]=[];
   private player:Player|null=null;
   private onDown?: (e:MouseEvent)=>void;
-  private cool=0;                       // teleport cooldown ticks
+  private cool=0;
 
-  // tiny sprite tint surface
   private sc=document.createElement("canvas");
   private sx:CanvasRenderingContext2D;
 
-  // animator meta (name: "portal")
   private anim:any=null; private frames=1; private fps=10; private fw=32; private fh=32;
 
   constructor(){
@@ -38,7 +35,6 @@ export class PortalSystem{
     this.sx=this.sc.getContext("2d")!;
   }
 
-  // 🔹 super small reset (for level switch): clear portals, shots, cooldown
   reset(){ this.A=this.B=undefined; this.Q.length=this.cool=0; }
 
   setPlayer(p:Player|null){ this.player=p; }
@@ -47,7 +43,6 @@ export class PortalSystem{
     const m=a?.getMeta?.("portal"); this.frames=(m?.frameCount|0)||1; this.fps=(m?.fps|0)||10;
   }
 
-  // (optional external clear alias kept for compat)
   clear(){ this.reset(); }
 
   attachInput(canvas:HTMLCanvasElement,cam:Cam){
@@ -65,7 +60,6 @@ export class PortalSystem{
     canvas.oncontextmenu=null;
   }
 
-  // grid DDA raycast to first solid (id>0), tagging FORBID tiles
   private cast(sx:number,sy:number,dx:number,dy:number,m:{width:number;height:number;tiles:Uint32Array|number[]},cH:number){
     let L=hypot(dx,dy)||1; dx/=L; dy/=L;
     const oY=cH-m.height*TILE,
@@ -91,7 +85,6 @@ export class PortalSystem{
     return null;
   }
 
-  // fire a shot; once it reaches hit point, place portal (unless banned)
   private spawn(k:"A"|"B",sx:number,sy:number,dx:number,dy:number,m:{width:number;height:number;tiles:Uint32Array|number[]},cH:number){
     const r=this.cast(sx,sy,dx,dy,m,cH); if(!r) return;
     if(!r.ban){ try{ zzfx?.(...(zip as unknown as number[])) }catch{} }
@@ -105,7 +98,6 @@ export class PortalSystem{
     const p={k,x,y,a,o}; k==="A"?this.A=p:this.B=p;
   }
 
-  // ellipse test in portal-local space
   private inPortal(p:Portal,cx:number,cy:number,hw:number,hh:number){
     const v=tb(cx-p.x,cy-p.y,p.o);
     const rx=PW*.48+((p.o==="R"||p.o==="L")?hw*.35:0);
@@ -132,7 +124,7 @@ export class PortalSystem{
     const k=pushByHit(ext.o,hw,hh,2), px=ext.x+k.dx, py=ext.y+k.dy;
     b.pos.x+=px-cx; b.pos.y+=py-cy;
     b.vel.x=re.vx; b.vel.y=re.vy;
-    b.grounded=false; b.touchL=b.touchR=false; b.hitWall=0;
+    b.grounded=false;
 
     try{ zzfx?.(...(port as unknown as number[])) }catch{}
     this.cool=8;
