@@ -30,7 +30,7 @@ export function createPlayer(a:Animator,hooks:PlayerHooks={}){
     _wasJ:false,_aim:false,_ang:Math.PI*.6,
     _pow:3,_min:1.8,_max:6.5,_charge:.11,_angStep:.0349, // ~2° rad
     _bad:false,
-    _dead:false,_deathT:0,_respawn:84,_spawn:{x:64,y:24},
+    _dead:false,_deathT:0,_respawn:55,_spawn:{x:64,y:24},
     _t0:performance.now(),
     _winT:0, // frames to keep “celebrate” anim active
     setAnimation:()=>{p._t0=performance.now()}
@@ -42,7 +42,7 @@ export function createPlayer(a:Animator,hooks:PlayerHooks={}){
   }
 
   /** Trigger “win” celebration: show death anim + freeze movement briefly. */
-  function celebrateWin(t=66){
+  function celebrateWin(t=55){
     if(p._winT>0||p._dead) return;
     p._winT=t|0;
     b.vel.x=b.vel.y=0; b.gravity=0; b.grounded=false; // gravity pause only; collisions stay on

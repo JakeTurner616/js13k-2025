@@ -4,15 +4,15 @@
       "frame": {
         "x": 0,
         "y": 0,
-        "w": 245,
+        "w": 243,
         "h": 24
       },
       "rotated": false,
       "trimmed": true,
       "spriteSourceSize": {
-        "x": 7,
+        "x": 9,
         "y": 8,
-        "w": 245,
+        "w": 243,
         "h": 24
       },
       "sourceSize": {
@@ -151,7 +151,7 @@
     "image": "texture.png",
     "format": "RGBA8888",
     "size": {
-      "w": 245,
+      "w": 243,
       "h": 97
     },
     "scale": 1
