@@ -22,11 +22,11 @@ export const setAnim=(p:any,n:number)=>{ p._anim!==n && (p._anim=n, p.setAnimati
 export const enter=(p:any,n:number,useAim?:boolean)=>{
   const b=p.body; p._st=n; p._aim=false;
   if(n===ST.G){
-    p._det=0; b.gravity=undefined;
+    b.gravity=undefined;
     setAnim(p,abs(b.vel.x)>.05?A.dash:A.idle); return;
   }
   // ST.F (air / dash)
-  p._det=useAim?2:0; b.grounded=false; b.gravity=undefined;
+  b.grounded=false; b.gravity=undefined;
   if(useAim){
     const a=p._ang,v=p._pow*.85; b.vel.x=cos(a)*v; b.vel.y=-sin(a)*v;
     setAnim(p,A.dash); p._pow=p._min;
