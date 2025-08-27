@@ -10,11 +10,6 @@
       "folder": ""
     },
     {
-      "name": "2_Alternative_Colour_Cat_Run-Sheet.png",
-      "path": "C:/Users/jaked/Downloads/CatCharacterAnimations1.1/CatCharacterAnimations1.1/SpriteSheets/AlternativeColour/2_Alternative_Colour_Cat_Run-Sheet.png",
-      "folder": ""
-    },
-    {
       "name": "3_Alternative_Colour_Cat_Jump-Sheet.png",
       "path": "C:/Users/jaked/Downloads/CatCharacterAnimations1.1/CatCharacterAnimations1.1/SpriteSheets/AlternativeColour/3_Alternative_Colour_Cat_Jump-Sheet.png",
       "folder": ""
@@ -25,8 +20,18 @@
       "folder": ""
     },
     {
+      "name": "6_Alternative_Colour_Cat_Dash-Sheet.png",
+      "path": "C:/Users/jaked/Downloads/CatCharacterAnimations1.1/CatCharacterAnimations1.1/SpriteSheets/AlternativeColour/6_Alternative_Colour_Cat_Dash-Sheet.png",
+      "folder": ""
+    },
+    {
       "name": "18_Alternative_Colour_Cat_Death-Sheet.png",
       "path": "C:/Users/jaked/Downloads/CatCharacterAnimations1.1/CatCharacterAnimations1.1/SpriteSheets/AlternativeColour/18_Alternative_Colour_Cat_Death-Sheet.png",
+      "folder": ""
+    },
+    {
+      "name": "portals-Sheet.png",
+      "path": "C:/Users/jaked/Downloads/CatCharacterAnimations1.1/portals-Sheet.png",
       "folder": ""
     }
   ],
