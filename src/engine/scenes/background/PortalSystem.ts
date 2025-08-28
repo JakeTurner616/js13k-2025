@@ -18,7 +18,7 @@ type Shot = {
 
 const TILE = 16, PW = 32, PH = 32, MD = 2000, S = 640, FORBID = 2, TAU = Math.PI * 2;
 const { min, sign, hypot, PI } = Math;
-const OA: Record<Ori, number> = { R: 0, L: 0, U: PI / 2, D: -PI / 2 }; // keep L==R draw-rotation
+const OA: Record<Ori, number> = { R: 0, L: 0, U: PI / 2, D: -PI / 2 };
 const RGBA = ["40,140,255", "255,160,40"];
 
 export class PortalSystem {
@@ -27,6 +27,7 @@ export class PortalSystem {
   private player: Player | null = null;
   private onDown?: (e: MouseEvent) => void;
   private cool = 0;
+  private lastExit?: "A" | "B"; // prevent infinite portal loop re-entry
 
   private sc = document.createElement("canvas");
   private sx: CanvasRenderingContext2D;
@@ -38,7 +39,7 @@ export class PortalSystem {
     this.sx = this.sc.getContext("2d")!;
   }
 
-  reset() { this.A = this.B = undefined; this.Q.length = this.cool = 0; }
+  reset() { this.A = this.B = undefined; this.Q.length = this.cool = 0; this.lastExit = undefined; }
   clear() { this.reset(); }
   setPlayer(p: Player | null) { this.player = p; }
   setAnimator(a: any) {
@@ -51,7 +52,10 @@ export class PortalSystem {
     this.onDown = e => {
       const m = getCurrentMap(); if (!m) return;
       const { wx, wy } = s2w(e.clientX, e.clientY, canvas, cam);
-      const p = this.player?.body, cx = p ? p.pos.x + p.width * .5 : wx, cy = p ? p.pos.y + p.height * .5 : wy;
+      const p = this.player?.body;
+      const hb = p?.hit ?? (p ? { x: 0, y: 0, w: p.width, h: p.height } : null);
+      const cx = p && hb ? p.pos.x + hb.x + hb.w * .5 : wx;
+      const cy = p && hb ? p.pos.y + hb.y + hb.h * .5 : wy;
       this.spawn(e.button === 2 ? "B" : "A", cx, cy, wx - cx, wy - cy, m, canvas.height);
     };
     canvas.addEventListener("mousedown", this.onDown);
@@ -68,12 +72,11 @@ export class PortalSystem {
   ) {
     let L = hypot(dx, dy) || 1; dx /= L; dy /= L;
     const oY = cH - m.height * TILE,
-      toTy = (wy: number) => ((wy - oY) / TILE | 0),
       inb = (x: number, y: number) => x >= 0 && y >= 0 && x < m.width && y < m.height,
       tid = (x: number, y: number) => inb(x, y) ? (m.tiles as any)[y * m.width + x] as number : 0,
       solid = (x: number, y: number) => tid(x, y) > 0;
 
-    let tx = (sx / TILE | 0), ty = toTy(sy), sX = sign(dx), sY = sign(dy);
+    let tx = (sx / TILE | 0), ty = ((sy - oY) / TILE | 0), sX = sign(dx), sY = sign(dy);
     let tX = sX ? (((sX > 0 ? tx + 1 : tx) * TILE - sx) / dx) : 1e30,
         tY = sY ? ((oY + (sY > 0 ? ty + 1 : ty) * TILE - sy) / dy) : 1e30,
         dX = sX ? TILE / Math.abs(dx) : 1e30,
@@ -104,7 +107,6 @@ export class PortalSystem {
     const p = { k, x, y, a, o }; k === "A" ? this.A = p : this.B = p;
   }
 
-  /** ellipse test in portal-local (normal/tangent) basis */
   private inPortal(p: Portal, cx: number, cy: number, hw: number, hh: number) {
     const v = tb(cx - p.x, cy - p.y, p.o);
     const rx = PW * .48 + ((p.o === "R" || p.o === "L") ? hw * .35 : 0);
@@ -116,15 +118,21 @@ export class PortalSystem {
     const pl = this.player, A = this.A, B = this.B; if (!(pl && A && B)) return;
     if (this.cool > 0) { this.cool--; return; }
 
-    const b: any = pl.body, hb = b.hit,
-      hw = ((hb?.w ?? b.width) * .5) | 0, hh = ((hb?.h ?? b.height) * .5) | 0,
-      cx = b.pos.x + b.width * .5, cy = b.pos.y + b.height * .5;
+    const b: any = pl.body, hb = b.hit ?? { x: 0, y: 0, w: b.width, h: b.height };
+    const hw = (hb.w * .5) | 0, hh = (hb.h * .5) | 0;
+    const cx = b.pos.x + hb.x + hb.w * .5, cy = b.pos.y + hb.y + hb.h * .5;
 
-    const inA = this.inPortal(A, cx, cy, hw, hh), ent = inA ? A : (this.inPortal(B, cx, cy, hw, hh) ? B : 0 as any);
-    if (!ent) return;
+    // --- Prevent infinite teleport loops ---
+    if (this.lastExit) {
+      const ex = this.lastExit === "A" ? A : B;
+      if (this.inPortal(ex, cx, cy, hw, hh)) return;
+    }
+
+    const inA = this.inPortal(A, cx, cy, hw, hh),
+          ent = inA ? A : (this.inPortal(B, cx, cy, hw, hh) ? B : 0 as any);
+    if (!ent) { this.lastExit = undefined; return; }
     const ext = ent === A ? B : A;
 
-    // entry→exit basis velocity transform + nudge out of exit plane
     const lv = tb(b.vel.x, b.vel.y, ent.o), re = fb(-lv.n, lv.t, ext.o);
     const k = pushByHit(ext.o, hw, hh, 2), px = ext.x + k.dx, py = ext.y + k.dy;
     b.pos.x += px - cx; b.pos.y += py - cy;
@@ -132,6 +140,7 @@ export class PortalSystem {
 
     try { zzfx?.(...(port as unknown as number[])) } catch { }
     this.cool = 8;
+    this.lastExit = ext === A ? "A" : "B";
   }
 
   tick() {
@@ -143,7 +152,6 @@ export class PortalSystem {
   }
 
   draw(ctx: CanvasRenderingContext2D, t: number) {
-    // shots
     for (const p of this.Q) {
       const tr = min(p.t, p.th) * S, px = p.x + p.dx * tr, py = p.y + p.dy * tr, c = RGBA[p.k === "A" ? 0 : 1];
       ctx.strokeStyle = `rgba(${c},.9)`; ctx.lineWidth = 2;
@@ -160,7 +168,6 @@ export class PortalSystem {
       }
     }
 
-    // portals (tinted sprite)
     const a = this.anim; if (!a) return;
     const fi = ((t * 0.001 * this.fps) | 0) % this.frames, sx = this.sx, sc = this.sc;
 

@@ -4,7 +4,7 @@
 
 import { applyPhysics } from "./Physics";
 import {
-  AN,A,ST,G,cos,sin,badAim,face,
+  AN, A, ST, G, cos, sin, badAim, face,
   pre as preFSM, post as postFSM, setAnim
 } from "./Core";
 import { zzfx } from "../engine/audio/SoundEngine";
@@ -21,6 +21,7 @@ export type PlayerHooks={onDeath?:(r:string)=>void; onRespawn?:()=>void};
 export type Player=ReturnType<typeof createPlayer>;
 
 export function createPlayer(a:Animator,hooks:PlayerHooks={}){
+  // Tight hitbox already present
   const b:any={pos:{x:32,y:32},vel:{x:0,y:0},width:32,height:32,hit:{x:9,y:8,w:14,h:20},grounded:false};
   const HB=b.hit?{x:b.hit.x|0,y:b.hit.y|0,w:b.hit.w|0,h:b.hit.h|0}:{x:0,y:0,w:b.width|0,h:b.height|0};
   const L={top:0,bottom:1e9,right:1e9,on:false};
@@ -113,8 +114,11 @@ export function createPlayer(a:Animator,hooks:PlayerHooks={}){
     const f=((Math.max(0,(t-p._t0)*1e-3)*fps)|0)%fc, flip=p._face<0, dx=flip?-b.pos.x+b.width*-1:b.pos.x;
     ctx.save(); if(flip) ctx.scale(-1,1); a.drawFrame(ctx,n,f,dx,b.pos.y); ctx.restore();
 
+    // Aim dots: originate from hitbox center
     if(!p._dead&&p._aim&&b.grounded){
-      const px=b.pos.x+b.width*.5, py=b.pos.y+b.height*.5, vx=cos(p._ang)*p._pow, vy=-sin(p._ang)*p._pow;
+      const hb=b.hit||{x:0,y:0,w:b.width,h:b.height};
+      const px=b.pos.x+hb.x+hb.w*.5, py=b.pos.y+hb.y+hb.h*.5;
+      const vx=cos(p._ang)*p._pow, vy=-sin(p._ang)*p._pow;
       ctx.save(); ctx.globalAlpha=.92; ctx.fillStyle=p._bad?"#f55":"#fff";
       for(let k=27;k--;){ const x=px+vx*k, y=py+vy*k+.5*G*k*k; ctx.fillRect(x|0,y|0,1,1); }
       ctx.restore();
