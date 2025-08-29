@@ -42,7 +42,22 @@ export const MenuScene={
     const m=a.getMeta("dash")||a.getMeta("idle"), fc=m?.frameCount||1, fps=m?.fps||8;
     a.drawFrame(c,"dash",((t*fps)|0)%fc,px,py);
 
-    const sc=2, cw=6*sc, tw=HINT.length*cw-sc, hx=((w-tw)/2)|0, hy=(h*.22)|0;
-    c.globalAlpha=.6+.4*Math.sin(t*4); drawText(c,HINT,hx,hy,sc,"#cbd5e1"); c.globalAlpha=1;
+    // per-glyph bobbing for title only
+    const bt=(s:string,y:number,sc:number,col:string,amp:number,spd:number)=>{
+      const tw=s.length*6*sc - sc, x0=((w-tw)/2)|0, step=6*sc;
+      for(let i=0;i<s.length;i++){
+        const dy=Math.sin(t*spd + i)*amp;
+        drawText(c,s[i], x0 + i*step, (y+dy)|0, sc, col);
+      }
+    };
+
+    // title at ~22% height (bobbing)
+    bt("FLYKT", (h*0.22)|0, 2, "#7aa2ff", 2, 5);
+
+    // HINT at ~34% height — static (no bob), still pulsing alpha
+    const sc=2, tw=HINT.length*6*sc - sc, hx=((w-tw)/2)|0, hy=(h*0.34)|0;
+    c.globalAlpha=.6+.4*Math.sin(t*4);
+    drawText(c,HINT,hx,hy,sc,"#cbd5e1");
+    c.globalAlpha=1;
   }
 };
