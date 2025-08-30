@@ -18,7 +18,7 @@ export type Player=ReturnType<typeof createPlayer>;
 const aimBad=(pow:number,ang:number)=>badAim(cos(ang)*pow,-sin(ang)*pow);
 
 export function createPlayer(a:Animator,hooks:PlayerHooks={}){
-  const b:any={pos:{x:32,y:32},vel:{x:0,y:0},width:32,height:32,hit:{x:9,y:8,w:14,h:20},grounded:false};
+  const b:any={pos:{x:32,y:32},vel:{x:0,y:0},width:32,height:32,hit:{x:10,y:10,w:12,h:18},grounded:false};
   const H=hb(b), L={top:0,bottom:1e9,right:1e9,on:false};
 
   const p={
@@ -101,10 +101,12 @@ export function createPlayer(a:Animator,hooks:PlayerHooks={}){
     // Aim dots: originate from hitbox center
     if(!p._dead&&p._aim&&b.grounded){
       const {cx,cy}=hc(b), vx=cos(p._ang)*p._pow, vy=-sin(p._ang)*p._pow;
-      ctx.save(); ctx.globalAlpha=.92; ctx.fillStyle=p._bad?"#f55":"#fff";
-      for(let k=27;k--;){ const x=cx+vx*k, y=cy+vy*k+.5*G*k*k; ctx.fillRect(x|0,y|0,1,1); }
+      ctx.save(); ctx.fillStyle=p._bad?"#f55":"#fff";
+      for(let k=15;k--;){ const x=cx+vx*k, y=cy+vy*k+.5*G*k*k; ctx.fillRect(x|0,y|0,1,1); }
       ctx.restore();
     }
+
+
   }
 
   function onTeleported(_:"R"|"L"|"U"|"D"){
@@ -113,5 +115,8 @@ export function createPlayer(a:Animator,hooks:PlayerHooks={}){
     p._aim=false; p._st=ST.F as State;
   }
 
-  return {body:b,update,draw,onTeleported,setSpawn,setLevelBounds,respawn,celebrateWin};
+  // tiny external hook for spikes
+  const spike=()=>die("spikes");
+
+  return {body:b,update,draw,onTeleported,setSpawn,setLevelBounds,respawn,celebrateWin,spike};
 }

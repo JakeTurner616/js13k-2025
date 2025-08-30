@@ -1,34 +1,25 @@
 // src/engine/renderer/level-loader.ts
 //
-// Tiny multi-level loader (pre-terser friendly) + FINISH-aware solids.
+// Tiny multi-level loader (pre-terser friendly) + FINISH/SPIKE-aware solids.
 // - Levels are base64-encoded (value,count) RLE pairs → Uint32Array tiles
-// - loadLevel1 / loadLevel2 wire straight into MapContext + Physics
-// - FINISH tile (241) is *excluded* from solids so portals won't stick
-//
-// Add more levels by copying the 3 import symbols and another loadLevelN()
-// then register it in your scene switcher (BackgroundScene).
+// - Width/height treated as fixed constants to reduce imports/code size
+// - FINISH tile (3) & SPIKE tile (4) are *excluded* from solids
 
 import {
-  LEVEL_1_BASE64 as b1,
-  LEVEL_1_WIDTH  as w1,
-  LEVEL_1_HEIGHT as h1
+  LEVEL_1_BASE64 as b1
 } from "../../levels/level1.ts";
 
 import {
-  LEVEL_2_BASE64 as b2,
-  LEVEL_2_WIDTH  as w2,
-  LEVEL_2_HEIGHT as h2
+  LEVEL_2_BASE64 as b2
 } from "../../levels/level2.ts";
 
 import { setSolidTiles as setSolids } from "../../player/Physics.ts";
 import { setCurrentMap as setMap, getCurrentMap as getMap } from "./MapContext.ts";
 
-const FINISH = 3; // finish tile id; must NOT be solid
+const FINISH=3, SPIKE=4;      // both non-solid tiles
+const W=50, H=40;             // dimensions as a constant for all maps
 
-/**
- * RLE(base64) decoder: bytes are [value, count] pairs.
- * Returns expanded Uint32Array of tile ids.
- */
+/** RLE(base64) decoder: bytes are [value, count] pairs. */
 function d(a:string){
   const r=atob(a), l=r.length, B=new Uint8Array(l);
   for(let i=0;i<l;i++) B[i]=r.charCodeAt(i);
@@ -38,18 +29,19 @@ function d(a:string){
   return out;
 }
 
-/** Core setter: decode → set current map → compute solids (exclude 0 & FINISH) */
-function L(w:number,h:number,base64:string){
+function L(base64:string){
   const tiles=d(base64);
-  setMap({ width:w, height:h, tiles });
+  setMap({ width:W, height:H, tiles });
   const S=new Set<number>();
-  for(let i=0;i<tiles.length;i++){ const v=tiles[i]; if(v && v!==FINISH) S.add(v); }
+  for(let i=0;i<tiles.length;i++){
+    const v=tiles[i];
+    if(v && v!==FINISH && v!==SPIKE) S.add(v); // exclude 3 & 4
+  }
   setSolids([...S]);
 }
 
-// Public loaders (extend as needed)
-export function loadLevel1(){ L(w1,h1,b1); }
-export function loadLevel2(){ L(w2,h2,b2); }
+export function loadLevel1(){ L(b1); }
+export function loadLevel2(){ L(b2); }
 
 // Re-export current map getter for convenience
 export { getMap as getCurrentMap };

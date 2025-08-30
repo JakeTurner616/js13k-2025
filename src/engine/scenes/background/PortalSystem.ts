@@ -15,6 +15,7 @@ type Portal={k:"A"|"B";x:number;y:number;a:number;o:Ori};
 type Shot={k:"A"|"B";x:number;y:number;dx:number;dy:number;hx:number;hy:number;a:number;o:Ori;t:number;th:number;ban:boolean};
 
 const TILE=16,PW=32,PH=32,MD=2000,S=640,FORBID=2,TAU=Math.PI*2;
+const FINISH=3, SPIKE=4; // 👈 disallow portals on these tiles too
 const {min,sign,hypot,PI}=Math;
 const OA:Record<Ori,number>={R:0,L:0,U:PI/2,D:-PI/2};
 const RGBA=["40,140,255","255,160,40"];
@@ -79,9 +80,17 @@ export class PortalSystem{
 
     for(let tr=0;tr<=MD;){
       if(tX<tY){ tr=tX; tx+=sX; tX+=dX; if(!inb(tx,ty)) break;
-        if(solid(tx,ty)){ const id=tid(tx,ty); return {hx:sx+dx*tr, hy:sy+dy*tr, ax:"x" as const, sX, sY, ban:id===FORBID}; }
+        if(solid(tx,ty)){
+          const id=tid(tx,ty);
+          const ban = id===FORBID || id===FINISH || id===SPIKE; // 👈 disallow 2,3,4
+          return {hx:sx+dx*tr, hy:sy+dy*tr, ax:"x" as const, sX, sY, ban};
+        }
       } else { tr=tY; ty+=sY; tY+=dY; if(!inb(tx,ty)) break;
-        if(solid(tx,ty)){ const id=tid(tx,ty); return {hx:sx+dx*tr, hy:sy+dy*tr, ax:"y" as const, sX, sY, ban:id===FORBID}; }
+        if(solid(ty>=0?tx:tx,ty)){ // keep same pattern
+          const id=tid(tx,ty);
+          const ban = id===FORBID || id===FINISH || id===SPIKE; // 👈 disallow 2,3,4
+          return {hx:sx+dx*tr, hy:sy+dy*tr, ax:"y" as const, sX, sY, ban};
+        }
       }
     }
     return null;

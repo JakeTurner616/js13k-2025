@@ -8,8 +8,9 @@ import { getInputState } from "../input/input";
 import { Environment } from "./background/Environment";
 import { PortalSystem } from "./background/PortalSystem";
 import { playWinTune } from "../../sfx/winTune";
+import { hb as getHB } from "../../player/hb"; // ✅ use shared hitbox helper
 
-const TILE=16, FINISH=3, LEVELS=[loadLevel1,loadLevel2];
+const TILE=16, FINISH=3, SPIKE=4, LEVELS=[loadLevel1,loadLevel2];
 let LIDX=0, ctx:CanvasRenderingContext2D|null=null;
 let env=new Environment(), portals=new PortalSystem(), player:Player|null=null;
 let cam:Cam={x:0,y:0}, bgX=0, winT=0;
@@ -68,17 +69,32 @@ export const BackgroundScene={
       if(player){
         const m=getCurrentMap();
         if(m){
-          const b=player.body, hb=b.hit||{x:0,y:0,w:b.width,h:b.height};
+          const b=player.body, H=getHB(b); // ✅ one source of truth
           const Y0=c.canvas.height-m.height*TILE;
-          const L=(b.pos.x+hb.x)|0, R=(b.pos.x+hb.x+hb.w-1)|0;
-          const T=(b.pos.y+hb.y)|0, B=(T+hb.h-1)|0;
+          const L=(b.pos.x+H.x)|0, R=(b.pos.x+H.x+H.w-1)|0;
+          const T=(b.pos.y+H.y)|0, B=(T+H.h-1)|0;
           let x0=(L/TILE)|0, x1=(R/TILE)|0, y0=((T-Y0)/TILE)|0, y1=((B-Y0)/TILE)|0;
           if(x0<0)x0=0; if(y0<0)y0=0; if(x1>=m.width)x1=m.width-1; if(y1>=m.height)y1=m.height-1;
           outer: for(let ty=y0;ty<=y1;ty++){
-            const row=ty*m.width;
-            for(let tx=x0;tx<=x1;tx++) if(m.tiles[row+tx]===FINISH){
-              stopSceneMusic(); playWinTune(); player.celebrateWin?.(66);
-              winT=66; portals.reset?.() ?? portals.clear(); break outer;
+            const row=ty*m.width, sy=Y0+ty*TILE;
+            for(let tx=x0;tx<=x1;tx++){
+              const id=m.tiles[row+tx];
+              if(id===FINISH){
+                stopSceneMusic(); playWinTune(); player.celebrateWin?.(66);
+                winT=66; portals.reset?.() ?? portals.clear(); break outer;
+              }
+              if(id===SPIKE){
+                // Triangular surface: y = sy + 2*|x - cx|
+                const sx=tx*TILE, s=TILE, cx=sx+s/2;
+                // horizontal overlap [l,r]
+                const l=L>sx?L:sx, r=R<sx+s?R:sx+s;
+                if(l<r){
+                  // pick x closest to apex to minimize y_threshold
+                  const x = l>cx ? l : r<cx ? r : cx;
+                  const yth = (sy + ((Math.abs(x-cx)*2)|0))|0; // V surface
+                  if(B>yth && T<sy+s){ player.spike?.(); portals.reset?.() ?? portals.clear(); break outer; }
+                }
+              }
             }
           }
         }

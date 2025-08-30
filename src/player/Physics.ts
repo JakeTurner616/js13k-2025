@@ -1,6 +1,7 @@
 // src/player/Physics.ts
 import { getCurrentMap } from "../engine/renderer/MapContext";
 import { G, T as S } from "./Core";
+import { hb as getHB } from "./hb";
 
 export type Vec2={x:number;y:number};
 export interface PhysicsBody{
@@ -30,8 +31,8 @@ export const applyPhysics=(b:PhysicsBody,ctx:CanvasRenderingContext2D,mapOverrid
 
   const enabled=!!m;
 
-  // hitbox
-  const hb=b.hit, hx=hb?hb.x:0, hy=hb?hb.y:0, hw=hb?hb.w:b.width, hh=hb?hb.h:b.height;
+  // hitbox via shared helper (DRY)
+  const H=getHB(b), hx=H.x, hy=H.y, hw=H.w, hh=H.h;
 
   let hitAny=()=>false;
   if(enabled){
@@ -54,7 +55,7 @@ export const applyPhysics=(b:PhysicsBody,ctx:CanvasRenderingContext2D,mapOverrid
     b.pos.x+=vx;
     if(hitAny()){
       b.pos.x-=vx;
-      b.vel.x=0;          // ❗ only kill horizontal speed on wall hit
+      b.vel.x=0;          // only kill horizontal speed on wall hit
       b.grounded=false;   // keep in-air friction
     }
   }
