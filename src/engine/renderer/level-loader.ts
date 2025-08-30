@@ -2,24 +2,29 @@
 //
 // Tiny multi-level loader (pre-terser friendly) + FINISH/SPIKE-aware solids.
 // - Levels are base64-encoded (value,count) RLE pairs → Uint32Array tiles
-// - Width/height treated as fixed constants to reduce imports/code size
+// - loadLevel1 / loadLevel2 wire straight into MapContext + Physics
 // - FINISH tile (3) & SPIKE tile (4) are *excluded* from solids
+//
+// Add more levels by copying the 3 import symbols and another loadLevelN()
+// then register it in your scene switcher (BackgroundScene).
 
 import {
-  LEVEL_1_BASE64 as b1
+  LEVEL_1_BASE64 as b1,
+  LEVEL_1_WIDTH  as w1,
+  LEVEL_1_HEIGHT as h1
 } from "../../levels/level1.ts";
 
 import {
-  LEVEL_2_BASE64 as b2
+  LEVEL_2_BASE64 as b2,
+  LEVEL_2_WIDTH  as w2,
+  LEVEL_2_HEIGHT as h2
 } from "../../levels/level2.ts";
 
 import { setSolidTiles as setSolids } from "../../player/Physics.ts";
 import { setCurrentMap as setMap, getCurrentMap as getMap } from "./MapContext.ts";
 
-const FINISH=3, SPIKE=4;      // both non-solid tiles
-const W=50, H=40;             // dimensions as a constant for all maps
+const FINISH=3, SPIKE=4; // both non-solid
 
-/** RLE(base64) decoder: bytes are [value, count] pairs. */
 function d(a:string){
   const r=atob(a), l=r.length, B=new Uint8Array(l);
   for(let i=0;i<l;i++) B[i]=r.charCodeAt(i);
@@ -29,9 +34,9 @@ function d(a:string){
   return out;
 }
 
-function L(base64:string){
+function L(w:number,h:number,base64:string){
   const tiles=d(base64);
-  setMap({ width:W, height:H, tiles });
+  setMap({ width:w, height:h, tiles });
   const S=new Set<number>();
   for(let i=0;i<tiles.length;i++){
     const v=tiles[i];
@@ -40,8 +45,6 @@ function L(base64:string){
   setSolids([...S]);
 }
 
-export function loadLevel1(){ L(b1); }
-export function loadLevel2(){ L(b2); }
-
-// Re-export current map getter for convenience
+export function loadLevel1(){ L(w1,h1,b1); }
+export function loadLevel2(){ L(w2,h2,b2); }
 export { getMap as getCurrentMap };
