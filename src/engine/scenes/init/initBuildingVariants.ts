@@ -8,7 +8,7 @@ const p =(q:number)=>R()<q;
 const hsl=(h:number,s:number,l:number)=>`hsl(${h},${s}%,${l}%)`;
 const jit=(n:number,j:number)=>n+ri(-j,j);
 
-const L_LIT="#fce473",L_UN="#1a1a1a",R_LIT="#ffd966",R_UN="#111";
+
 
 const walls=[ // base palettes
   {h:0,s:0,ll:20,lr:13},
@@ -20,26 +20,13 @@ const walls=[ // base palettes
 // favor 3–5 cols, rare 6
 const pickColsLeft=()=>{const r=R();return r<.45?3:r<.8?4:r<.95?5:6};
 
-// corner-sharing window lights (left/right corners toggle together)
-function makeLights(rows:number,cL:number,cR:number){
-  const maxC=Math.max(cL,cR), lights:string[][]=[];
-  for(let y=0;y<rows;y++){
-    const cornerOn=p(.5), row:string[]=[];
-    for(let x=0;x<maxC;x++){
-      const on = x===0 || x===cL-1 || x===cR-1 ? cornerOn : p(.75);
-      const leftSide = x < cL;
-      row.push(leftSide ? (on?L_LIT:L_UN) : (on?R_LIT:R_UN));
-    }
-    lights.push(row);
-  }
-  return lights;
-}
+
 
 /** heightMul compensates for layer scale so apparent height reads right. */
 export function generateBuildingVariants(
   n:number, minH:number, maxH:number, heightMul=1
-):(BuildingVariant&{groundOffset:number;blinkOffset?:number})[]{
-  const out:(BuildingVariant&{groundOffset:number;blinkOffset?:number})[]=[];
+):(BuildingVariant&{groundOffset:number})[]{
+  const out:(BuildingVariant&{groundOffset:number})[]=[];
 
   for(let i=0;i<n;i++){
     const cL = pickColsLeft();
@@ -51,7 +38,7 @@ export function generateBuildingVariants(
     const rows = Math.max(1, f(h/28));
 
     const hat=p(.5), columns=p(.6), sills=p(.8);
-    const groundOffset=ri(-5,5), hasAntenna=hat && p(.4);
+    const groundOffset=ri(-5,5);
 
     const base=walls[ri(0,walls.length-1)];
     const wl=hsl(jit(base.h,3), jit(base.s,2), jit(base.ll,2));
@@ -62,13 +49,10 @@ export function generateBuildingVariants(
       colsLeft: cL,
       colsRight: cR,               // undefined => rectangular
       hat, columns, sills,
-      groundOffset, hasAntenna,
-      antennaHeight: 20 + R()*20,
-      antennaRungs: ri(2,5),
-      blinkOffset: R(),
+      groundOffset,
       wallLeftColor: wl,
       wallRightColor: wr,
-      windowLights: makeLights(rows, cL, cR ?? cL)
+      
     });
   }
   return out;

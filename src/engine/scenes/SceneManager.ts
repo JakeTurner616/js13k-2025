@@ -1,5 +1,5 @@
 // src/engine/scenes/SceneManager.ts
-import { tickFPS, drawFPS } from "../debug/FPS";
+import { tickFPS } from "../debug/FPS";
 
 export type Scene={ start?():void; stop?():void; update():void; draw(now:number,alpha:number):void; };
 
@@ -19,7 +19,7 @@ export function loop(t:number){
   const a=acc/DT;
 
   if(!DHZ || t-lastDraw>=DDT){
-    lastDraw=t; cur.draw(t,a); tickFPS(t); drawFPS();
+    lastDraw=t; cur.draw(t,a); tickFPS(t);
   }
   requestAnimationFrame(loop);
 }

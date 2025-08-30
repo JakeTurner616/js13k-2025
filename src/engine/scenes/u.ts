@@ -1,4 +1,4 @@
-// src/engine/scenes/u.ts
+// repo-fix/src/engine/scenes/u.ts
 export const { sin:S, cos:Co } = Math;
 
 export const clamp=(n:number,a:number,b:number)=>n<a?a:n>b?b:n;
@@ -24,17 +24,6 @@ export const vstrip=(c:CanvasRenderingContext2D,bx:number,_by:number,fw:number,d
 };
 export const hband=(c:CanvasRenderingContext2D,bx:number,by:number,fw:number,dm:number,y0:number,h:number,color:number|string,dep:number)=>
   vstrip(c,bx,by,fw,dm,0,1,y0,h,color,dep);
-
-export const blink=(c:CanvasRenderingContext2D,x:number,y:number,r:number,t:number,a0=.5,ci=0,s=.85,d=.18)=>{
-  const p=(t*s)%1,a=p<d?1-(p/d)*.2:a0;
-  c.fillStyle=col(ci); c.globalAlpha=a; c.beginPath(); c.arc(x,y,r,0,7); c.fill(); c.globalAlpha=1;
-};
-export const antenna=(c:CanvasRenderingContext2D,cx:number,cy:number,h:number,rungs:number,t:number,strokeCi=9,off=0)=>{
-  c.strokeStyle=col(strokeCi);
-  c.beginPath(); c.moveTo(cx,cy); c.lineTo(cx,cy-h); c.stroke();
-  for(let i=1;i<=rungs;i++){ const y=cy-(h*i)/(rungs+1); c.beginPath(); c.moveTo(cx-3,y); c.lineTo(cx+3,y); c.stroke(); }
-  blink(c,cx,cy-h-3,2,t,.1,0,.85+.5*off,.18+.08*off);
-};
 
 export type Draw=(c:CanvasRenderingContext2D,w:number,h:number,t:number,x:number)=>void;
 export const layersBack:Draw[]=[], layersMid:Draw[]=[], layersFront:Draw[]=[];

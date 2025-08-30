@@ -1,12 +1,11 @@
-// src/engine/scenes/objects/drawBuilding.ts
-import { poly, clamp, vstrip, hband, antenna } from "../u";
+// repo-fix/src/engine/scenes/objects/drawBuilding.ts
+import { poly, clamp, vstrip, hband } from "../u";
 
 export type BV = {
   h:number; colsLeft:number; colsRight?:number; rows:number;
   hat?:boolean; columns?:boolean; sills?:boolean;
-  hasAntenna?:boolean; antennaHeight?:number; antennaRungs?:number;
   wallLeftColor?:string; wallRightColor?:string;
-  hatOverhangPx?:number; hatHeightPx?:number; blinkOffset?:number;
+  hatOverhangPx?:number; hatHeightPx?:number;
   // caches
   _vid?:number; _r?:number;
 };
@@ -42,7 +41,7 @@ const windows=(c:CanvasRenderingContext2D,x:number,y:number,v:BV,cL:number,cR:nu
 
   if(v._vid==null){
     const seed=(n:number)=>((Math.sin(n*12.9898)*43758.5453)%1+1)%1;
-    const sSeed=(v.blinkOffset??0)*3.17 + v.colsLeft*.73 + (v.colsRight??v.colsLeft)*.41 + v.rows*.19;
+    const sSeed=v.colsLeft*.73 + (v.colsRight??v.colsLeft)*.41 + v.rows*.19;
     const s=seed(sSeed), rr=(s*997)|0; v._r=rr; v._vid=rr%5;
   }
   const r=v._r!, vid=v._vid!;
@@ -85,7 +84,7 @@ const windows=(c:CanvasRenderingContext2D,x:number,y:number,v:BV,cL:number,cR:nu
   face(cR,x+side, y+dep, fwR,-1, baseR);
 };
 
-export function drawBuilding(c:CanvasRenderingContext2D,x:number,y:number,v:BV,t:number,sc:number){
+export function drawBuilding(c:CanvasRenderingContext2D,x:number,y:number,v:BV,_t:number,sc:number){
   const WIN=8,GAP=6, cL=v.colsLeft, cR=v.colsRight??cL;
   const fwL=cL*WIN+(cL-1)*GAP, fwR=cR*WIN+(cR-1)*GAP, fh=v.h, side=fwL*.5, dep=fh*.03;
   const ex=.5/sc, ey=.5/sc;
@@ -105,7 +104,4 @@ export function drawBuilding(c:CanvasRenderingContext2D,x:number,y:number,v:BV,t
   poly(c,17,[[x-pad,y-hh],[x,y+ey2],[x+side,y+dep+ey2],[x+side,y-hh+dep]]);
   poly(c,16,[[x+side,y-hh+dep],[x+side,y+dep+ey2],[x+fwSum,y+ey2],[x+fwSum+pad,y-hh]]);
   poly(c,18,[[x-pad,y-hh+ey2],[x+fwL,y-hh-dep+ey2],[x+fwSum+pad,y-hh+ey2],[x+side,y-hh+dep+ey2]]);
-
-  if(v.hasAntenna && v.antennaHeight && v.antennaRungs)
-    antenna(c,x+fwL*.5,y-hh+ey2,v.antennaHeight,v.antennaRungs,t,17,(v.blinkOffset??0));
 }
