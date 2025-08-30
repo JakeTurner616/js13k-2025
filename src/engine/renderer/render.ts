@@ -8,7 +8,7 @@ export const drawMapAndColliders=(ctx:CanvasRenderingContext2D,map:{width:number
     const X=x*ts, Y=off+y*ts;
     if(id==4){
       // upward triangle
-      ctx.fillStyle="#a11";
+      ctx.fillStyle="#777";
       ctx.beginPath(); ctx.moveTo(X, Y+ts); ctx.lineTo(X+ts/2, Y);     ctx.lineTo(X+ts, Y+ts); ctx.closePath(); ctx.fill();
 
      

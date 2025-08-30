@@ -8,7 +8,7 @@ import { getInputState } from "../input/input";
 import { Environment } from "./background/Environment";
 import { PortalSystem } from "./background/PortalSystem";
 import { playWinTune } from "../../sfx/winTune";
-import { hb as getHB } from "../../player/hb"; // ✅ use shared hitbox helper
+import { hb as getHB } from "../../player/hb"; // shared hitbox helper
 
 const TILE=16, FINISH=3, SPIKE=4, LEVELS=[loadLevel1,loadLevel2];
 let LIDX=0, ctx:CanvasRenderingContext2D|null=null;
@@ -40,6 +40,16 @@ function loadLevel(idx:number){
   dispatchEvent(new CustomEvent("scene:start-music",{detail:{level:LIDX}}));
 }
 
+//probably should remember to remove for prod; This is all just debug stuff so we can step through and reload levels.
+try{
+  (globalThis as any).lvl = {
+    n: () => loadLevel(LIDX+1),      // next
+    p: () => loadLevel(LIDX-1),      // prev
+    g: (i:number) => loadLevel(i|0), // goto (wraps via modulo in loadLevel)
+    r: () => loadLevel(LIDX)         // reload current
+  };
+}catch{}
+
 export const BackgroundScene={
   setCanvas(c:CanvasRenderingContext2D){ ctx=c; },
 
@@ -69,7 +79,7 @@ export const BackgroundScene={
       if(player){
         const m=getCurrentMap();
         if(m){
-          const b=player.body, H=getHB(b); // ✅ one source of truth
+          const b=player.body, H=getHB(b);
           const Y0=c.canvas.height-m.height*TILE;
           const L=(b.pos.x+H.x)|0, R=(b.pos.x+H.x+H.w-1)|0;
           const T=(b.pos.y+H.y)|0, B=(T+H.h-1)|0;
@@ -86,13 +96,11 @@ export const BackgroundScene={
               if(id===SPIKE){
                 // Triangular surface: y = sy + 2*|x - cx|
                 const sx=tx*TILE, s=TILE, cx=sx+s/2;
-                // horizontal overlap [l,r]
-                const l=L>sx?L:sx, r=R<sx+s?R:sx+s;
+                const l=L>sx?L:sx, r=R<sx+s?R:sx+s; // overlap
                 if(l<r){
-                  // pick x closest to apex to minimize y_threshold
                   const x = l>cx ? l : r<cx ? r : cx;
                   const yth = (sy + ((Math.abs(x-cx)*2)|0))|0; // V surface
-                  if(B>yth && T<sy+s){ player.spike?.(); portals.reset?.() ?? portals.clear(); break outer; }
+                  if(B>yth && T<sy+s){ player.spike?.(); break outer; } // ✅ no portal reset on spikes
                 }
               }
             }

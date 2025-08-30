@@ -47,4 +47,5 @@ function L(w:number,h:number,base64:string){
 
 export function loadLevel1(){ L(w1,h1,b1); }
 export function loadLevel2(){ L(w2,h2,b2); }
+
 export { getMap as getCurrentMap };
