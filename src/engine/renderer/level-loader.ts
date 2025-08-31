@@ -1,51 +1,32 @@
 // src/engine/renderer/level-loader.ts
-//
-// Tiny multi-level loader (pre-terser friendly) + FINISH/SPIKE-aware solids.
-// - Levels are base64-encoded (value,count) RLE pairs → Uint32Array tiles
-// - loadLevel1 / loadLevel2 wire straight into MapContext + Physics
-// - FINISH tile (3) & SPIKE tile (4) are *excluded* from solids
-//
-// Add more levels by copying the 3 import symbols and another loadLevelN()
-// then register it in your scene switcher (BackgroundScene).
+import { setSolidTiles as S } from "../../player/Physics";
+import { setCurrentMap as M, getCurrentMap as getMap } from "./MapContext";
+import * as L1 from "../../levels/level1";
+import * as L2 from "../../levels/level2";
+import * as L3 from "../../levels/level3";
 
-import {
-  LEVEL_1_BASE64 as b1,
-  LEVEL_1_WIDTH  as w1,
-  LEVEL_1_HEIGHT as h1
-} from "../../levels/level1.ts";
+const V = [
+  [L1.LEVEL_1_WIDTH, L1.LEVEL_1_HEIGHT, L1.LEVEL_1_BASE64],
+  [L2.LEVEL_2_WIDTH, L2.LEVEL_2_HEIGHT, L2.LEVEL_2_BASE64],
+  [L3.LEVEL_3_WIDTH, L3.LEVEL_3_HEIGHT, L3.LEVEL_3_BASE64],
+] as const;
 
-import {
-  LEVEL_2_BASE64 as b2,
-  LEVEL_2_WIDTH  as w2,
-  LEVEL_2_HEIGHT as h2
-} from "../../levels/level2.ts";
-
-import { setSolidTiles as setSolids } from "../../player/Physics.ts";
-import { setCurrentMap as setMap, getCurrentMap as getMap } from "./MapContext.ts";
-
-const FINISH=3, SPIKE=4; // both non-solid
-
-function d(a:string){
-  const r=atob(a), l=r.length, B=new Uint8Array(l);
-  for(let i=0;i<l;i++) B[i]=r.charCodeAt(i);
-  let tot=0; for(let i=1;i<l;i+=2) tot+=B[i];
-  const out=new Uint32Array(tot); let j=0;
-  for(let i=0;i<l;i+=2){ const v=B[i], n=B[i+1]; for(let k=0;k<n;k++) out[j++]=v; }
-  return out;
-}
-
-function L(w:number,h:number,base64:string){
-  const tiles=d(base64);
-  setMap({ width:w, height:h, tiles });
-  const S=new Set<number>();
-  for(let i=0;i<tiles.length;i++){
-    const v=tiles[i];
-    if(v && v!==FINISH && v!==SPIKE) S.add(v); // exclude 3 & 4
+const L=(i:number)=>{
+  const [w,h,b]=V[i|0], r=atob(b as string), l=r.length;
+  let tot=0; for(let k=1;k<l;k+=2) tot+=r.charCodeAt(k);
+  const tiles=new Uint32Array(tot); let j=0;
+  const s:any={};
+  for(let k=0;k<l;k+=2){
+    let n=r.charCodeAt(k+1), v=r.charCodeAt(k);
+    while(n--){ tiles[j++]=v; if(v&&v-3&&v-4) s[v]=1 }
   }
-  setSolids([...S]);
-}
+  M({width:w as number, height:h as number, tiles});
+  S(Object.keys(s).map(Number));
+};
 
-export function loadLevel1(){ L(w1,h1,b1); }
-export function loadLevel2(){ L(w2,h2,b2); }
-
+export const LEVEL_COUNT = V.length;
+export const loadLevel =(i:number)=>L(i);
+export const loadLevel1 =()=>L(0);
+export const loadLevel2 =()=>L(1);
+export const loadLevel3 =()=>L(2);
 export { getMap as getCurrentMap };

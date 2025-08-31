@@ -11,7 +11,8 @@ import path from "path";
 // --- I/O table (add more rows for more levels) ---
 const MAPS = [
   { in:"src/maps/map.json",  outJson:"src/maps/map.rle.json",  outTs:"src/levels/level1.ts", prefix:"LEVEL_1" },
-  { in:"src/maps/map2.json", outJson:"src/maps/map2.rle.json", outTs:"src/levels/level2.ts", prefix:"LEVEL_2" }
+  { in:"src/maps/map2.json", outJson:"src/maps/map2.rle.json", outTs:"src/levels/level2.ts", prefix:"LEVEL_2" },
+  { in:"src/maps/map3.json", outJson:"src/maps/map3.rle.json", outTs:"src/levels/level3.ts", prefix:"LEVEL_3" }
 ];
 
 // --- tiny helpers ---
