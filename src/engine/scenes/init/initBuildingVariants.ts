@@ -6,9 +6,6 @@ const R=Math.random,f=Math.floor;
 const ri=(a:number,b:number)=>f(a+R()*(b-a+1));
 const p =(q:number)=>R()<q;
 const hsl=(h:number,s:number,l:number)=>`hsl(${h},${s}%,${l}%)`;
-const jit=(n:number,j:number)=>n+ri(-j,j);
-
-
 
 const walls=[ // base palettes
   {h:0,s:0,ll:20,lr:13},
@@ -19,8 +16,6 @@ const walls=[ // base palettes
 
 // favor 3–5 cols, rare 6
 const pickColsLeft=()=>{const r=R();return r<.45?3:r<.8?4:r<.95?5:6};
-
-
 
 /** heightMul compensates for layer scale so apparent height reads right. */
 export function generateBuildingVariants(
@@ -41,8 +36,8 @@ export function generateBuildingVariants(
     const groundOffset=ri(-5,5);
 
     const base=walls[ri(0,walls.length-1)];
-    const wl=hsl(jit(base.h,3), jit(base.s,2), jit(base.ll,2));
-    const wr=hsl(jit(base.h,3), jit(base.s,2), jit(base.lr,2));
+    const wl=hsl(base.h+ri(-3,3), base.s+ri(-2,2), base.ll+ri(-2,2));
+    const wr=hsl(base.h+ri(-3,3), base.s+ri(-2,2), base.lr+ri(-2,2));
 
     out.push({
       h, rows,
@@ -52,7 +47,6 @@ export function generateBuildingVariants(
       groundOffset,
       wallLeftColor: wl,
       wallRightColor: wr,
-      
     });
   }
   return out;
