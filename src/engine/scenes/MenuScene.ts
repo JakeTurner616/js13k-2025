@@ -24,7 +24,7 @@ export const MenuScene={
 
   update(){
     this._bgX0=this._bgX1;
-    this._bgX1+=this._spd*(1/50); // fixed-step scroll
+    this._bgX1+=this._spd*(1/40); // fixed-step scroll
   },
 
   draw(tMs:number,alpha:number){
@@ -42,22 +42,24 @@ export const MenuScene={
     const m=a.getMeta("dash")||a.getMeta("idle"), fc=m?.frameCount||1, fps=m?.fps||8;
     a.drawFrame(c,"dash",((t*fps)|0)%fc,px,py);
 
-    // per-glyph bobbing for title only
+    // per-glyph bobbing for title only (with shadow)
     const bt=(s:string,y:number,sc:number,col:string,amp:number,spd:number)=>{
       const tw=s.length*6*sc - sc, x0=((w-tw)/2)|0, step=6*sc;
       for(let i=0;i<s.length;i++){
-        const dy=Math.sin(t*spd + i)*amp;
-        drawText(c,s[i], x0 + i*step, (y+dy)|0, sc, col);
+        const dy=Math.sin(t*spd + i)*amp, xx=x0+i*step, yy=(y+dy)|0;
+        drawText(c,s[i], xx+1, yy+1, sc, "#000");   // shadow
+        drawText(c,s[i], xx,   yy,   sc, col);      // main
       }
     };
 
     // title at ~22% height (bobbing)
     bt("FLYKT", (h*0.22)|0, 2, "#7aa2ff", 2, 5);
 
-    // HINT at ~34% height — static (no bob), still pulsing alpha
-    const sc=2, tw=HINT.length*6*sc - sc, hx=((w-tw)/2)|0, hy=(h*0.34)|0;
+    // HINT at ~34% height — static (no bob), still pulsing alpha (with shadow)
+    const sc=2, tw=HINT.length*6*sc - sc, hx=((w-tw)/2)|0, hy=(h*0.74)|0;
     c.globalAlpha=.6+.4*Math.sin(t*4);
-    drawText(c,HINT,hx,hy,sc,"#cbd5e1");
+    drawText(c,HINT,hx+1,hy+1,sc,"#000");       // shadow
+    drawText(c,HINT,hx,hy,sc,"#cbd5e1");        // main
     c.globalAlpha=1;
   }
 };

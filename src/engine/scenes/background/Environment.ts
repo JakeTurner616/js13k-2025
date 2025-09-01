@@ -1,55 +1,75 @@
-// src/engine/scenes/background/Environment.ts
+// repo-fix/src/engine/scenes/background/Environment.ts
 import { layersBack, layersMid, layersFront, col } from "../u";
-import "../effects"; // registers stars + moon + haze into layersBack
+import "../effects";
 import { drawBuilding, type BV } from "../objects/drawBuilding";
 import { generateBuildingVariants } from "../init/initBuildingVariants";
 
 type RowCfg = {
-  min:number; max:number; sc:number; sp:number; gap:number; bias:number; drop:number; M:Map<number,BV>;
+  min: number;
+  max: number;
+  sc: number;
+  sp: number;
+  gap: number;
+  drop: number;
+  dz: number;                    // screen-px depth (new)
+  M: Map<number, BV>;
 };
 
-const ROWS: Readonly<Omit<RowCfg,"M">[]> = [
-  { min:100, max:250, sc:.66, sp:.18, gap:120, bias:.98, drop:120 },
-  { min:80,  max:200, sc:.88, sp:.26, gap:132, bias:1.04, drop:60  }
-] as const;
+const ROWS: RowCfg[] = [
+  { min: 190, max: 240, sc: 1.2, sp: .48, gap: 130, drop: 20, dz: 1.6 },
+  { min:  80, max: 150, sc: 1.0, sp: .50, gap: 120, drop: 10, dz: 1.2 }
+].map(r => ({ ...r, M: new Map() }));
 
 export class Environment {
-  private rows: RowCfg[] = ROWS.map(r => ({ ...r, M:new Map() }));
-  private _g:any;         // gradient
-  private _gK = "";       // gradient key "w×h"
+  private _g: any;
+  private _gK = "";
 
-  start(){ for(const r of this.rows) r.M.clear(); }
+  start() { ROWS.forEach(r => r.M.clear()); }
 
-  private _row(c:CanvasRenderingContext2D, w:number, h:number, t:number, bgX:number, r:RowCfg){
-    const {min,max,sc,sp,gap,bias,drop,M}=r, lx=bgX*sp, inv=1/sc, sw=w*inv, hmul=bias*inv;
-    const si = ~~((lx - sw)/gap) - 1, ei = ~~((lx + sw*2)/gap) + 1;
-
-    c.save();
-    c.scale(sc,sc);
-    c.translate(-lx,0);
-
-    for(let i=si;i<ei;i++){
-      let v = M.get(i) || (M.set(i, generateBuildingVariants(1,min,max,hmul)[0]), M.get(i)!);
-      drawBuilding(c, i*gap, (h+drop)*inv - v.h, v, t, sc);
+  draw(c: CanvasRenderingContext2D, time: number, bgX: number) {
+    const { width: w, height: h } = c.canvas;
+    const k = w + "×" + h;
+    
+    if (this._gK !== k) {
+      const g = c.createLinearGradient(0, 0, 0, h);
+      [0, .4, .8, 1].forEach((stop, i) => g.addColorStop(stop, col(i + 4)));
+      this._g = g;
+      this._gK = k;
     }
-    c.restore();
+    
+    c.fillStyle = this._g;
+    c.fillRect(0, 0, w, h);
+    
+    layersBack.forEach(d => d(c, w, h, time, bgX));
+    this._row(c, w, h, time, bgX, ROWS[0]);
+    layersMid.forEach(d => d(c, w, h, time, bgX));
+    this._row(c, w, h, time, bgX, ROWS[1]);
+    layersFront.forEach(d => d(c, w, h, time, bgX));
   }
 
-  draw(c:CanvasRenderingContext2D, time:number, bgX:number){
-    const {width:w, height:h} = c.canvas;
-    const k = w+"×"+h;
-    if (this._gK!==k){
-      const g=c.createLinearGradient(0,0,0,h);
-      const stops=[0,.4,.8,1], idx=[4,5,6,7];
-      for(let i=0;i<4;i++) g.addColorStop(stops[i], col(idx[i]));
-      this._g=g; this._gK=k;
+  private _row(
+    c: CanvasRenderingContext2D,
+    w: number,
+    h: number,
+    t: number,
+    bgX: number,
+    r: RowCfg
+  ) {
+    const { min, max, sc, sp, gap, drop, M } = r;
+    const lx = bgX * sp * .6, inv = 1 / sc;
+    const si = ~~((lx - w * inv) / gap) - 1;
+    const ei = ~~((lx + w * inv * 2) / gap) + 1;
+    
+    c.save();
+    c.scale(sc, sc);
+    c.translate(-lx, 0);
+    
+    for (let i = si; i < ei; i++) {
+      let v = M.get(i) ||
+        (M.set(i, generateBuildingVariants(1, min, max, inv)[0]), M.get(i)!);
+      drawBuilding(c, i * gap, (h + drop) * inv - v.h, v, t, sc);
     }
-    c.fillStyle=this._g; c.fillRect(0,0,w,h);
-
-    for(const d of layersBack) d(c,w,h,time,bgX);
-    this._row(c,w,h,time,bgX,this.rows[0]);
-    for(const d of layersMid)  d(c,w,h,time,bgX);
-    this._row(c,w,h,time,bgX,this.rows[1]);
-    for(const d of layersFront) d(c,w,h,time,bgX);
+    
+    c.restore();
   }
 }

@@ -21,7 +21,7 @@ export function createPlayer(a: Animator, hooks: PlayerHooks = {}) {
   const p = {
     body: b, _st: ST.G as State, _anim: 0, _face: 1 as 1 | -1,
     _wasJ: false, _aim: false, _ang: Math.PI * .6,
-    _pow: 3, _min: 1.8, _max: 6.5, _charge: .11, _angStep: .0349, // ~2° rad
+    _pow: 3, _min: 1.8, _max: 6.5, _charge: .11, _angStep: .0349,
     _dead: false, _deathT: 0, _respawn: 55, _spawn: { x: 64, y: 24 },
     _t0: performance.now(),
     _winT: 0,
@@ -41,21 +41,26 @@ export function createPlayer(a: Animator, hooks: PlayerHooks = {}) {
   }
 
   const respawn = () => {
+    b.pos.x = p._spawn.x; b.pos.y = p._spawn.y;
     b.vel.x = b.vel.y = 0; b.gravity = undefined;
     b.grounded = false;
-    p._aim = false; p._dead = false; setAnim(p, A.idle); p._st = ST.G as State;
+    p._aim = false; p._dead = false; p._winT = 0;
+    setAnim(p, A.idle); p._st = ST.G as State;
     hooks.onRespawn?.();
   };
 
   const die = (reason: string) => {
     if (p._dead) return;
     p._dead = true; p._deathT = p._respawn | 0;
-    b.pos.x = p._spawn.x; b.pos.y = p._spawn.y;
+    b.pos.x = p._spawn.x; b.pos.y = p._spawn.y;   // death anim plays at spawn (consistent with spikes/OOB)
     setAnim(p, A.death);
     b.vel.x = b.vel.y = 0; b.gravity = 0;
     b.grounded = false;
     hooks.onDeath?.(reason);
   };
+
+  // NEW: thematic reset uses the same death flow
+  const reset = () => die("reset");
 
   function update(i: Partial<{ left: boolean; right: boolean; up: boolean; down: boolean; jump: boolean }>, ctx: CanvasRenderingContext2D) {
     const LFT = !!i.left, RGT = !!i.right, U = !!i.up, D = !!i.down, J = !!i.jump;
@@ -63,7 +68,6 @@ export function createPlayer(a: Animator, hooks: PlayerHooks = {}) {
     if (p._winT > 0) { p._winT--; p._wasJ = J; return; }
     if (p._dead) { p._deathT > 0 ? p._deathT-- : respawn(); p._wasJ = J; return; }
 
-    // No bad-aim cancellation — just run FSM + physics
     preFSM(p, { left: LFT, right: RGT, up: U, down: D, jump: J });
     applyPhysics(b, ctx);
     postFSM(p);
@@ -82,7 +86,6 @@ export function createPlayer(a: Animator, hooks: PlayerHooks = {}) {
     const f = ((Math.max(0, (t - p._t0) * 1e-3) * fps) | 0) % fc, flip = p._face < 0, dx = flip ? -b.pos.x + b.width * -1 : b.pos.x;
     ctx.save(); if (flip) ctx.scale(-1, 1); a.drawFrame(ctx, n, f, dx, b.pos.y); ctx.restore();
 
-    // Aim dots: originate from hitbox center (simple visual guide, not a solver)
     if (!p._dead && p._aim && b.grounded) {
       const { cx, cy } = hc(b), vx = cos(p._ang) * p._pow, vy = -sin(p._ang) * p._pow;
       ctx.save(); ctx.fillStyle = "#fff";
@@ -97,8 +100,8 @@ export function createPlayer(a: Animator, hooks: PlayerHooks = {}) {
     p._aim = false; p._st = ST.F as State;
   }
 
-  // tiny external hook for spikes
   const spike = () => die("spikes");
 
-  return { body: b, update, draw, onTeleported, setSpawn, setLevelBounds, respawn, celebrateWin, spike };
+  // expose reset
+  return { body: b, update, draw, onTeleported, setSpawn, setLevelBounds, respawn, celebrateWin, spike, reset };
 }

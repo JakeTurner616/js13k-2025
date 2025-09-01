@@ -3,6 +3,7 @@
 // ←/→ or A/D = rotate the arc
 // ↑/↓ or W/S = adjust power (forward/back)
 // Space = jump / hold to aim
+// R = reset (respawn + clear portals in scene)
 
 const k: Record<number, boolean> = {};
 const m = {
@@ -10,7 +11,8 @@ const m = {
   r: [68, 39], // D or Right
   u: [87, 38], // W or Up
   d: [83, 40], // S or Down
-  j: [32]      // Space
+  j: [32],     // Space
+  rs:[82]      // R (reset)
 };
 
 export function setupInput(){
@@ -25,5 +27,6 @@ export function getInputState(){
     up:    m.u.some(c=>k[c]),
     down:  m.d.some(c=>k[c]),
     jump:  m.j.some(c=>k[c]),
+    reset: m.rs.some(c=>k[c]),
   };
 }

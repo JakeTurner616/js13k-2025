@@ -73,6 +73,15 @@ export const BackgroundScene={
   update(){
     if(!ctx) return;
     const c=ctx, inp=getInputState();
+
+    // --- Press R to reset: trigger death anim + clear portals
+    if (inp.reset) {
+      player?.reset();
+      portals.reset?.() ?? portals.clear();
+      winT=0;
+      if (player) bgX = player.body.pos.x;
+    }
+
     if(winT>0){ if(--winT===0) go(1); }
     else{
       player?.update(inp,c); portals.tick();
