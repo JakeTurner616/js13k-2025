@@ -12,7 +12,8 @@ import path from "path";
 const MAPS = [
   { in:"src/maps/map.json",  outJson:"src/maps/map.rle.json",  outTs:"src/levels/level1.ts", prefix:"LEVEL_1" },
   { in:"src/maps/map2.json", outJson:"src/maps/map2.rle.json", outTs:"src/levels/level2.ts", prefix:"LEVEL_2" },
-  { in:"src/maps/map3.json", outJson:"src/maps/map3.rle.json", outTs:"src/levels/level3.ts", prefix:"LEVEL_3" }
+  { in:"src/maps/map3.json", outJson:"src/maps/map3.rle.json", outTs:"src/levels/level3.ts", prefix:"LEVEL_3" },
+  { in:"src/maps/map4.json", outJson:"src/maps/map4.rle.json", outTs:"src/levels/level4.ts", prefix:"LEVEL_4" }
 ];
 
 // --- tiny helpers ---

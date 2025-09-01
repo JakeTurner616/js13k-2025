@@ -4,11 +4,14 @@ import { setCurrentMap as M, getCurrentMap as getMap } from "./MapContext";
 import * as L1 from "../../levels/level1";
 import * as L2 from "../../levels/level2";
 import * as L3 from "../../levels/level3";
+import * as L4 from "../../levels/level4";
+
 
 const V = [
   [L1.LEVEL_1_WIDTH, L1.LEVEL_1_HEIGHT, L1.LEVEL_1_BASE64],
   [L2.LEVEL_2_WIDTH, L2.LEVEL_2_HEIGHT, L2.LEVEL_2_BASE64],
   [L3.LEVEL_3_WIDTH, L3.LEVEL_3_HEIGHT, L3.LEVEL_3_BASE64],
+  [L4.LEVEL_4_WIDTH, L4.LEVEL_4_HEIGHT, L4.LEVEL_4_BASE64],
 ] as const;
 
 const L=(i:number)=>{
@@ -29,4 +32,5 @@ export const loadLevel =(i:number)=>L(i);
 export const loadLevel1 =()=>L(0);
 export const loadLevel2 =()=>L(1);
 export const loadLevel3 =()=>L(2);
+
 export { getMap as getCurrentMap };
