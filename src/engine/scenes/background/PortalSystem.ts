@@ -22,7 +22,7 @@ const FINISH=3, SPIKE=4;
 const { min, sign, hypot, PI } = Math;
 
 // FIX: correct rotation angles for drawing
-const OA: Record<Ori, number> = { R: 0, L: PI, U: PI/2, D: -PI/2 };
+const OA: Record<Ori, number> = { R: PI, L: 0, U: PI/2, D: -PI/2 };
 
 const RGBA = ["40,140,255","255,160,40"]; // A,B color tints
 
