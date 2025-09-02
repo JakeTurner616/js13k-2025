@@ -8,7 +8,7 @@ import { zzfx, zzfxM, playZzfxMSong } from "./engine/audio/SoundEngine";
 import { retro1Song } from "./music/retro1";
 import { level2Song } from "./music/level2";
 
-const { ctx } = setupCanvas(480,270);
+const { ctx } = setupCanvas(580,272);
 setupInput();
 [MenuScene,BackgroundScene].forEach(s=>s.setCanvas(ctx));
 

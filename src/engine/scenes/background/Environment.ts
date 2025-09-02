@@ -11,13 +11,12 @@ type RowCfg = {
   sp: number;
   gap: number;
   drop: number;
-  dz: number;                    // screen-px depth (new)
   M: Map<number, BV>;
 };
 
 const ROWS: RowCfg[] = [
-  { min: 190, max: 240, sc: 1.2, sp: .48, gap: 130, drop: 20, dz: 1.6 },
-  { min:  80, max: 150, sc: 1.0, sp: .50, gap: 120, drop: 10, dz: 1.2 }
+  { min: 190, max: 240, sc: 1.2, sp: .48, gap: 130, drop: 20},
+  { min:  80, max: 150, sc: 1.0, sp: .50, gap: 120, drop: 10}
 ].map(r => ({ ...r, M: new Map() }));
 
 export class Environment {
