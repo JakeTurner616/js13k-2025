@@ -3,15 +3,15 @@ type Tiles=number[]|Uint32Array;
 let px:CanvasPattern|null=null,pb:CanvasPattern|null=null;
 const E="⬛";
 
-const mk=(ch:string,c:string,sz=11)=>{
+const mk=(c:string,sz=11)=>{
   const a=document.createElement("canvas"),g=a.getContext("2d")!;
   a.width=a.height=sz; g.font=sz+"px serif"; g.textAlign="center"; g.textBaseline="middle";
-  g.fillStyle=c; g.fillText(ch,sz/2,sz/2); return g.createPattern(a,"repeat")!;
+  g.fillStyle=c; g.fillText(E,sz/2,sz/2); return g.createPattern(a,"repeat")!;
 };
 
 export const drawMapAndColliders=(ctx:CanvasRenderingContext2D,map:{width:number;height:number;tiles:Tiles},ts:number)=>{
   const c=ctx,{width:w,height:h,tiles:T}=map,off=(c.canvas.height-h*ts)|0;
-  px??=mk(E,"#0006"); pb??=mk(E,"#fff2"); // grey→dark grid, black→light grid
+  px??=mk("#0006"); pb??=mk("#fff2"); // grey→dark grid, black→light grid
 
   for(let y=0,i=0;y<h;y++)for(let x=0;x<w;x++,i++){
     const v=T[i] as number; if(!v)continue;

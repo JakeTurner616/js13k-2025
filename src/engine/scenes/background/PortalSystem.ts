@@ -8,21 +8,20 @@ import { zip } from "../../../sfx/zip";
 import type { Player } from "../../../player/Player";
 import type { Cam } from "../../camera/Camera";
 
-type O = "R"|"L"|"U"|"D";
-type P = { k:"A"|"B"; x:number; y:number; a:number; o:O };
-type Sh = { k:"A"|"B"; x:number;y:number;dx:number;dy:number;hx:number;hy:number;a:number;o:O;t:number;th:number;ban:boolean };
+type O="R"|"L"|"U"|"D";
+type P={k:"A"|"B";x:number;y:number;a:number;o:O};
+type Sh={k:"A"|"B";x:number;y:number;dx:number;dy:number;hx:number;hy:number;a:number;o:O;t:number;th:number;ban:boolean};
 
 const T=16,PW=32,PH=32,MD=2e3,S=640,{min,sign,hypot,PI}=Math;
-const ANG:Record<O,number>={R:PI,L:0,U:PI/2,D:-PI/2}, TINT=["40,140,255","255,160,40"];
+const ang=(o:O)=>o==="R"?PI:o==="L"?0:o==="U"?PI/2:-PI/2;
 
 export class PortalSystem{
-  private A?:P; private B?:P; private Q:Sh[]=[];
-  private pl:Player|null=null; private cool=0; private last?:"A"|"B";
-  private h?: (e:MouseEvent)=>void;
+  A?:P; B?:P; Q:Sh[]=[];
+  pl:Player|null=null; cool=0; last?:"A"|"B"; h?:(e:MouseEvent)=>void;
 
-  private sc=document.createElement("canvas");
-  private sx=this.sc.getContext("2d")!;
-  private anim:any=null; private n=1; private fps=10; private fw=32; private fh=32;
+  sc=document.createElement("canvas");
+  sx=this.sc.getContext("2d")!;
+  anim:any=null; n=1; fps=10; fw=32; fh=32;
 
   constructor(){ this.sc.width=PW; this.sc.height=PH; }
   reset(){ this.A=this.B=undefined; this.Q.length=this.cool=0; this.last=undefined; }
@@ -51,11 +50,10 @@ export class PortalSystem{
   private cast(sx:number,sy:number,dx:number,dy:number,m:{width:number;height:number;tiles:Uint32Array|number[]},cH:number){
     let L=hypot(dx,dy)||1; dx/=L; dy/=L;
     const oY=cH-m.height*T, inb=(x:number,y:number)=>x>=0&&y>=0&&x<m.width&&y<m.height;
-    const tid=(x:number,y:number)=>inb(x,y)?(m.tiles as any)[y*m.width+x]|0:0;
-    const sol=(x:number,y:number)=>tid(x,y)>0;
+    const tid=(x:number,y:number)=>inb(x,y)?(m.tiles as any)[y*m.width+x]|0:0, sol=(x:number,y:number)=>tid(x,y)>0;
 
-    let tx=(sx/T|0), ty=((sy-oY)/T|0), sxn=sign(dx), syn=sign(dy);
-    let tX=sxn?(((sxn>0?tx+1:tx)*T-sx)/dx):1e30,
+    let tx=(sx/T|0), ty=((sy-oY)/T|0), sxn=sign(dx), syn=sign(dy),
+        tX=sxn?(((sxn>0?tx+1:tx)*T-sx)/dx):1e30,
         tY=syn?((oY+(syn>0?ty+1:ty)*T-sy)/dy):1e30,
         dX=sxn?T/Math.abs(dx):1e30,
         dY=syn?T/Math.abs(dy):1e30;
@@ -66,21 +64,19 @@ export class PortalSystem{
         if(sol(tx,ty)){ const id=tid(tx,ty),ban=id===2||id===3||id===4; return {hx:sx+dx*tr,hy:sy+dy*tr,ax:"x" as const,sX:sxn,sY:syn,ban}; }
       }else{
         tr=tY; ty+=syn; tY+=dY; if(!inb(tx,ty)) break;
-        if(sol(tx,ty)){ const id=tid(tx,ty),ban=id===2||id===3||id===4; return {hx:sx+dx*tr,hy:sy+dy*tr,ax:"y" as const,sX:sxn,sY:syn,ban}; }
+        if(sol(ty?tx:tx,ty)){ const id=tid(tx,ty),ban=id===2||id===3||id===4; return {hx:sx+dx*tr,hy:sy+dy*tr,ax:"y" as const,sX:sxn,sY:syn,ban}; }
       }
     }
     return null;
   }
 
-  private spawn(k:"A"|"B",sx:number,sy:number,dx:number,dy:number,m:{width:number;height:number;tiles:Uint32Array|number[]},cH:number){
+  private spawn(k:"A"|"B",sx:number,sy:number,dx:number,dy:number,m:any,cH:number){
     const r=this.cast(sx,sy,dx,dy,m,cH); if(!r) return;
     if(!r.ban) try{ zzfx?.(...(zip as unknown as number[])) }catch{}
     const L=hypot(dx,dy)||1, d=hypot(r.hx-sx,r.hy-sy),
           o=(r.ax==="x"?(r.sX>0?"L":"R"):(r.sY>0?"U":"D")) as O;
-    this.Q.push({k,x:sx,y:sy,dx:dx/L,dy:dy/L,hx:r.hx,hy:r.hy,a:ANG[o],o,t:0,th:min(d,MD)/S,ban:r.ban});
+    this.Q.push({k,x:sx,y:sy,dx:dx/L,dy:dy/L,hx:r.hx,hy:r.hy,a:ang(o),o,t:0,th:min(d,MD)/S,ban:r.ban});
   }
-
-  private place(k:"A"|"B",x:number,y:number,a:number,o:O){ (this as any)[k]={k,x,y,a,o} as P; }
 
   private inP(p:P,cx:number,cy:number,hw:number,hh:number){
     const v=tb(cx-p.x,cy-p.y,p.o),
@@ -107,26 +103,34 @@ export class PortalSystem{
   tick(){
     for(let i=this.Q.length;i--;){
       const s=this.Q[i]; s.t+=1/60;
-      if(s.t>=s.th){ if(!s.ban) this.place(s.k,s.hx,s.hy,s.a,s.o); this.Q.splice(i,1); }
+      if(s.t>=s.th){ if(!s.ban) (this as any)[s.k]={k:s.k,x:s.hx,y:s.hy,a:s.a,o:s.o} as P; this.Q.splice(i,1); }
     }
     this.tp();
   }
 
   draw(ctx:CanvasRenderingContext2D,t:number){
+    // rays
     for(const p of this.Q){
-      const tr=min(p.t,p.th)*S, px=p.x+p.dx*tr, py=p.y+p.dy*tr, c=TINT[p.k==="A"?0:1];
-      ctx.strokeStyle=`rgba(${c},.9)`; ctx.lineWidth=2; ctx.beginPath(); ctx.moveTo(p.x,p.y); ctx.lineTo(px,py); ctx.stroke();
-      ctx.fillStyle=p.ban?"rgba(255,80,80,.95)":"#fff"; ctx.beginPath(); ctx.arc(px,py,2.5,0,PI*2); ctx.fill();
-      if(p.t>p.th*.9){ const ga=ctx.globalAlpha; ctx.globalAlpha=.6; ctx.fillStyle=p.ban?`rgba(255,60,60,.7)`: `rgba(${c},.35)`; ctx.beginPath(); ctx.arc(p.hx,p.hy,4.5,0,PI*2); ctx.fill(); ctx.globalAlpha=ga; }
+      const tr=min(p.t,p.th)*S, px=p.x+p.dx*tr, py=p.y+p.dy*tr;
+      const ga=ctx.globalAlpha;
+      ctx.globalAlpha=.9; ctx.strokeStyle=p.k==="A"?"#28f":"#f80";
+      ctx.beginPath(); ctx.moveTo(p.x,p.y); ctx.lineTo(px,py); ctx.stroke();
+      ctx.globalAlpha=1; ctx.fillStyle=p.ban?"#f44":"#fff";
+      ctx.beginPath(); ctx.arc(px,py,2.5,0,PI*2); ctx.fill();
+      if(p.t>p.th*.9){
+        ctx.globalAlpha=.6; ctx.fillStyle=p.ban?"#f66":(p.k==="A"?"#28f":"#f80");
+        ctx.beginPath(); ctx.arc(p.hx,p.hy,4.5,0,PI*2); ctx.fill(); ctx.globalAlpha=ga;
+      }
     }
+
+    // portals
     const a=this.anim; if(!a) return;
     const fi=((t*.001*this.fps)|0)%this.n, sx=this.sx, sc=this.sc;
-
+    sx.setTransform(PW/this.fw,0,0,PH/this.fh,0,0);
     const draw=(p?:P)=>{
       if(!p) return;
-      sx.setTransform(PW/this.fw,0,0,PH/this.fh,0,0);
       sx.clearRect(0,0,PW,PH);
-      a.drawFrame(sx as unknown as CanvasRenderingContext2D,"portal",fi,0,0);
+      a.drawFrame(sx as any,"portal",fi,0,0);
       sx.globalCompositeOperation="source-atop";
       sx.fillStyle=p.k==="A"?"#28f":"#f80"; sx.fillRect(0,0,PW,PH);
       sx.globalCompositeOperation="source-over";
