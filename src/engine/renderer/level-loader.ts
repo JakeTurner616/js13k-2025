@@ -1,6 +1,6 @@
 // src/engine/renderer/level-loader.ts
 import { setSolidTiles as S } from "../../player/Physics";
-import { setCurrentMap as M, getCurrentMap as getMap } from "./MapContext";
+
 import * as L1 from "../../levels/level1";
 import * as L2 from "../../levels/level2";
 import * as L3 from "../../levels/level3";
@@ -8,7 +8,10 @@ import * as L4 from "../../levels/level4";
 import * as L5 from "../../levels/level5";
 import * as L6 from "../../levels/level6";
 
-
+export type GameMap={width:number;height:number;tiles:Uint32Array};
+let $:GameMap|null=null;
+export const setCurrentMap=(m:GameMap)=>($=m);
+export const M=()=>$;
 const V = [
   [L1.LEVEL_1_WIDTH, L1.LEVEL_1_HEIGHT, L1.LEVEL_1_BASE64],
   [L2.LEVEL_2_WIDTH, L2.LEVEL_2_HEIGHT, L2.LEVEL_2_BASE64],
@@ -27,7 +30,7 @@ const L=(i:number)=>{
     let n=r.charCodeAt(k+1), v=r.charCodeAt(k);
     while(n--){ tiles[j++]=v; if(v&&v-3&&v-4) s[v]=1 }
   }
-  M({width:w as number, height:h as number, tiles});
+  setCurrentMap({width:w as number, height:h as number, tiles});
   S(Object.keys(s).map(Number));
 };
 
@@ -39,4 +42,4 @@ export const loadLevel3 =()=>L(2);
 export const loadLevel4 =()=>L(3);
 export const loadLevel5 =()=>L(4);
 
-export { getMap as getCurrentMap };
+export { M as getCurrentMap };

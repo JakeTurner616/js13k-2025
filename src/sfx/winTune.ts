@@ -1,28 +1,18 @@
 // src/sfx/winTune.ts
-// Tiny “win sting” using your SoundEngine (zzfxM + playZzfxMSong).
-// We keep it dead-simple: unpack the blob → render once → play (no loop).
-
 import { zzfxM, playZzfxMSong } from "../engine/audio/SoundEngine";
 
-// Provided ZzFXM song blob (instruments, patterns, sequence, bpm, meta)
-export const WIN_TUNE:any =
-[[[,0,223,.03,.01,.05,2,,.1,,,.03,,,,,,,,.1]],
- [[[, -1,  1.02,.05,.08,.11, 2.02,.05,.08,.11, 3.02,.05,.08,.11, 4.02,.05,.08,.11, 4.09, 4,.23, 4,.23, , 4,.23, 4, , ,.23,,,,,],
-    [,  1,     , 8.02,.05,.08,.11, 9.02,.05,.08,.11,10.02,.05,.08,.11,11.02,.05,.08,17.09,17,.23,17,.23, ,17,.23,17, , ,.23,,,,,],
-    [, -1,     ,     ,13.02,.05,.08,.11,14.02,.05,.08,.11,15.02,.05,.08,.11,16.02,.05,12.09,12,.23,12,.23, ,12,.23,12, , ,.23,,,,,],
-    [,  1,     ,     ,17.02,.05,.08,.11,18.02,.05,.08,.11,19.02,.05,.08,.11,20.02,22.09,22,.23,22,.23, ,22,.23,21, , ,.23,,,,,]]],
- [0],135];
+const W: [any, any, any, any] = [
+  [[,0,223,.03,.01,.05,2,,.1,,,.03,,,,,,,,.1]],
+  [[[, -1,1.02,.05,.08,.11,2.02,.05,.08,.11,3.02,.05,.08,.11,4.02,.05,.08,.11,4.09,4,.23,4,.23,,4,.23,4,,,.23,,,,,],
+    [,  1,    ,8.02,.05,.08,.11,9.02,.05,.08,.11,10.02,.05,.08,.11,11.02,.05,.08,17.09,17,.23,17,.23,,17,.23,17,,,.23,,,,,],
+    [, -1,    ,    ,13.02,.05,.08,.11,14.02,.05,.08,.11,15.02,.05,.08,.11,16.02,.05,12.09,12,.23,12,.23,,12,.23,12,,,.23,,,,,],
+    [,  1,    ,    ,17.02,.05,.08,.11,18.02,.05,.08,.11,19.02,.05,.08,.11,20.02,22.09,22,.23,22,.23,,22,.23,21,,,.23,,,,,]]],
+  [0],135
+];
 
-let _cached:[Float32Array,Float32Array]|null=null;
+let C:[Float32Array,Float32Array]|null=null;
 
-/** Render + play once (cache the rendered buffers to keep it tiny+fast). */
-export function playWinTune(){
-  try{
-    if(!_cached){
-      const [inst,pat,seq,bpm]=WIN_TUNE;
-      _cached = zzfxM(inst,pat,seq,bpm);
-    }
-    const [L,R]=_cached;
-    playZzfxMSong(L,R,false);
-  }catch{}
-}
+export const playWinTune=()=>{ try{
+  C||(C=zzfxM(...W));
+  const [L,R]=C; return playZzfxMSong(L,R,false);
+}catch{} };

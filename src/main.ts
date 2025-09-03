@@ -35,7 +35,7 @@ createAnimator(a=>{
 });
 
 // debug helpers
-try {
-  (globalThis as any).gover = () => setScene(GameOverScene);
-  (globalThis as any).menu  = () => setScene(MenuScene);
-} catch {}
+//try {
+//  (globalThis as any).gover = () => setScene(GameOverScene);
+//  (globalThis as any).menu  = () => setScene(MenuScene);
+//} catch {}

@@ -1,5 +1,5 @@
 // src/player/Physics.ts
-import { getCurrentMap } from "../engine/renderer/MapContext";
+import { getCurrentMap } from "../engine/renderer/level-loader";
 import { G, T as S } from "./Core";
 import { hb as getHB } from "./hb";
 
