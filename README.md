@@ -6,15 +6,16 @@
 
 # FLYKT 𓆩₍^. .^₎𓆪 
 
-<p align="center">
-  A physics-based platformer where you <i>flick</i> a <b>black cat</b> through portals to help it <i>escape</i>.
-</p>
+A physics platformer that's all about solving levels using momentum, portals, and precise movement. Aim, charge, and fire a black cat through interesting puzzles across city rooftops and alleyways. Can you solve them all?
 
-<p align="center">
-  <b>/flɪkt/ — An international homograph with two equal and distinct meanings:</b><br />
-  <i>n.</i> <b>1.</b> <span role="img" aria-label="Swedish flag">&#x1F1F8;&#x1F1EA;</span> <i>Escape, Flight, Getaway</i><br />
-  <i>v.</i> <b>2.</b> <span role="img" aria-label="UK flag">&#x1F1EC;&#x1F1E7;</span> <i>To be propelled; launched with a swift, sharp motion</i>
-</p>
+# How to play
+
+Aim: hold <kbd>Space</kbd> on ground, Aim with <kbd>A</kbd> + <kbd>D</kbd>  release <kbd>Space</kbd> to launch.
+
+Portals: <kbd>Mouse Left</kbd> = A, <kbd>Mouse Right</kbd> = B
+
+Reset current level: <kbd>R</kbd>
+
 
 <p align="center">
   <a href="https://js13kgames.com"><strong>A 2025 js13k game jam entry »</strong></a>
@@ -32,15 +33,3 @@
 - **A/←**: Point jump to left  
 - **D/→**: Point jump to right  
 
----
-
-## Nerd Stuff
-
-### Core Systems
-- **Portal System** – Raycasting, velocity transformation, cooldown management  
-- **Physics Engine** – Custom collisions and inertia  
-- **Camera System** – EMA smoothing with safe zones and pixel snapping  
-- **Audio Engine** – ZzFX-based sound generator for SFX  
-- **Music** – Custom ZzFXM songs composed for a small form factor  
-- **Scene Management** – State machine with transition support  
-- **Level Data** – Support for Tiled map editor  
