@@ -1,5 +1,5 @@
 // src/player/Physics.ts
-import { getCurrentMap } from "../engine/renderer/level-loader";
+import { getCurrentMap } from "../engine/renderer/mapState"; // ← break the cycle
 import { G, T as S } from "./Core";
 import { hb as getHB } from "./hb";
 
@@ -55,8 +55,8 @@ export const applyPhysics=(b:PhysicsBody,ctx:CanvasRenderingContext2D,mapOverrid
     b.pos.x+=vx;
     if(hitAny()){
       b.pos.x-=vx;
-      b.vel.x=0;          // only kill horizontal speed on wall hit
-      b.grounded=false;   // keep in-air friction
+      b.vel.x=0;
+      b.grounded=false;
     }
   }
 
