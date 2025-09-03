@@ -34,7 +34,8 @@ function go(d=0){
   dispatchEvent(new CustomEvent("scene:start-music",{detail:{level:LIDX}}));
 }
 
-//try{ (globalThis as any).lvl={ n:()=>go(1), p:()=>go(-1), g:(i:number)=>{LIDX=i|0;go(0)}, r:()=>go(0) }; }catch{}
+//debug helper for levels not to be used in prod
+try{ (globalThis as any).lvl={ n:()=>go(1), p:()=>go(-1), g:(i:number)=>{LIDX=i|0;go(0)}, r:()=>go(0) }; }catch{}
 
 export const BackgroundScene={
   setCanvas(c:CanvasRenderingContext2D){ ctx=c; },
