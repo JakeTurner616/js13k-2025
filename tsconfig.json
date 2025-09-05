@@ -1,37 +1,31 @@
 {
   "compilerOptions": {
-    /* Output target */
-    "target": "ESNext",
+    /* Emit/Target (editor-only; rollup/plugin-typescript handles real emit) */
+    "target": "ES2020",
     "module": "ESNext",
     "lib": ["ES2022", "DOM"],
-
-    /* Module & Resolution */
     "moduleResolution": "bundler",
-    "allowImportingTsExtensions": true,
     "verbatimModuleSyntax": true,
-    "moduleDetection": "force",
 
-    /* Emit control */
+    /* Keep the compiler out of your way during jam crunch */
     "noEmit": true,
     "removeComments": true,
     "noEmitHelpers": true,
     "importHelpers": false,
 
-    /* Class behavior */
-    "useDefineForClassFields": true,
+    /* Code shape hints (match our rollup config) */
+    "useDefineForClassFields": false,
 
-    /* Strictness & Safety */
+    /* Strict but not noisy */
     "strict": true,
-    "noUnusedLocals": true,
-    "noUnusedParameters": true,
+    "noUnusedLocals": false,
+    "noUnusedParameters": false,
     "noFallthroughCasesInSwitch": true,
-    "noUncheckedSideEffectImports": true,
 
-    /* JS13k-lean */
-    "erasableSyntaxOnly": true,
-    "esModuleInterop": false,
+    /* Nice-to-haves */
+    "skipLibCheck": true,
     "forceConsistentCasingInFileNames": true,
-    "skipLibCheck": true
+    "esModuleInterop": false
   },
   "include": ["src"]
 }
