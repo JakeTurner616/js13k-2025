@@ -52,7 +52,7 @@ createAnimator(a=>{
   GameOverScene.setAnimator(a);
 
   // Start game from menu
-  MenuScene.onClick = () => { zzfx(); setScene(BackgroundScene); playLvl(0); };
+  MenuScene.onClick = () => { zzfx(); g.D=g.T=g._t=0; setScene(BackgroundScene); playLvl(0); };
 
   // DEV-only ScreenshotScene boot logic removed from prod:
   // if (SHOT) {

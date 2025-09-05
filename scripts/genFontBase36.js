@@ -1,33 +1,27 @@
 // tools/genFontBase36.js
 // Generates src/engine/font/procFont.ts (base36-compressed 5x7 font)
-// Only includes glyphs actually used by TEXT_SOURCES.
 
 import fs from "fs";
 import path from "path";
 
-/** ===== Text actually used in-game =====
- * Keep this list authoritative so we only bake needed glyphs.
- * (Uppercasing happens automatically.)
- */
+/** Keep this authoritative so we only bake needed glyphs. */
 const TEXT_SOURCES = [
   // Menu
   "FLYKT",
   "CLICK / TAP TO START!",
 
   // Game Over / Credits
-  "FLYKT",
-  "A TINY GAME FOR",
-  "JS13KGAMES.COM 2025",
-  "SPECIAL THANKS TO",
-  "JS13K COMMUNITY, FRIENDS, AND ALL MY SPECIAL PLAYTESTERS",
-  "MADE WITH LOVE BY JAKE TURNER",
-  "CLICK / TAP TO RETURN",
+  "THANKS FOR PLAYING",
+
+  "U",
+
+  // HUD (ensure S, digits, and colon)
+  "DEATHS TIME",
+  "0123456789",
+  "00:00",
 ];
 
-/** ===== 5x7 uppercase pixel font =====
- * Use only caps + minimal punctuation to keep it tiny.
- * Add shapes only if they appear in TEXT_SOURCES.
- */
+/** 5x7 uppercase pixel font */
 const FONT = {
   "A":[".###.","#...#","#...#","#####","#...#","#...#","#...#"],
   "B":["####.","#...#","#...#","####.","#...#","#...#","####."],
@@ -57,38 +51,38 @@ const FONT = {
   "1":["..#..",".##..","..#..","..#..","..#..","..#..",".###."],
   "2":[".###.","#...#","....#","...#.","..#..",".#...","#####"],
   "3":["####.","....#","....#",".###.","....#","....#","####."],
+  "4":["#...#","#...#","#...#","#####","....#","....#","....#"],
   "5":["#####","#....","#....","####.","....#","....#","####."],
+  "6":[".###.","#....","#....","####.","#...#","#...#",".###."],
+  "7":["#####","....#","...#.","..#..","..#..","..#..","..#.."],
+  "8":[".###.","#...#","#...#",".###.","#...#","#...#",".###."],
+  "9":[".###.","#...#","#...#",".####","....#","....#",".###."],
 
   " ":[".....",".....",".....",".....",".....",".....","....."],
   ".":[".....",".....",".....",".....",".....","..#..","..#.."],
   ",":[".....",".....",".....",".....","..#..","..#..",".#..."],
   "/":["....#","...#.","..#..",".#...","#....",".....","....."],
   "!":["..#..","..#..","..#..","..#..","..#..",".....","..#.."],
+  ":":[".....","..#..",".....",".....","..#..",".....","....."], // colon
 };
 
-/* ===== Build the exact glyph set we need ===== */
+/* Build exact glyph set */
 const needed = new Set(
-  TEXT_SOURCES.join("")
-    .toUpperCase()
-    .split("")
-    .filter(ch => ch in FONT)
+  TEXT_SOURCES.join("").toUpperCase().split("").filter(ch => ch in FONT)
 );
+const usedChars = Array.from(needed).sort();
 
-const usedChars = Array.from(needed).sort(); // stable order
-
-/* ===== Encode glyphs (MSB-first 35 bits → base36, 7 chars) ===== */
-function encodeGlyph(rows, ch) {
-  let bits = "";
-  for (let y=0; y<7; y++) for (let x=0; x<5; x++) bits += (rows[y][x]==="#") ? "1" : "0";
-  const v = BigInt("0b"+bits);
-  return v.toString(36).padStart(7,"0");
+/* Encode glyphs (MSB-first 35 bits → base36, 7 chars) */
+function encodeGlyph(rows) {
+  let bits=""; for (let y=0;y<7;y++) for (let x=0;x<5;x++) bits += rows[y][x]==="#"?"1":"0";
+  return BigInt("0b"+bits).toString(36).padStart(7,"0");
 }
 
-const glyphMap   = usedChars.join("");
-const encodedData= usedChars.map(c=>encodeGlyph(FONT[c],c)).join("");
+const glyphMap = usedChars.join("");
+const encodedData = usedChars.map(c=>encodeGlyph(FONT[c])).join("");
 
-/* ===== Emit runtime module ===== */
-const out = `// Auto-generated font (base36 compressed 5x7) — ONLY used glyphs
+/* Emit runtime module */
+const out=`// Auto-generated font (base36 compressed 5x7) — ONLY used glyphs
 
 export const glyphs: string = "${glyphMap}";
 export const data: string = "${encodedData}";

@@ -34,7 +34,9 @@ export default {
   },
   treeshake: {
     annotations: true,
-    moduleSideEffects: false,
+    // keep side effects for the effects module only (stars + moon)
+    moduleSideEffects: id =>
+      /src[\\/].*scenes[\\/]effects[\\/]index\.ts$/.test(id),
     propertyReadSideEffects: false,
     tryCatchDeoptimization: false,
     unknownGlobalSideEffects: false

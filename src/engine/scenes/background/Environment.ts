@@ -1,6 +1,6 @@
 // repo-fix/src/engine/scenes/background/Environment.ts
 import { layersBack, layersMid, layersFront, col } from "../u";
-import "../effects";
+import { registerEffects } from "../effects"; // <-- call this in start()
 import { drawBuilding, type BV } from "../objects/drawBuilding";
 import { generateBuildingVariants } from "../init/initBuildingVariants";
 
@@ -16,7 +16,10 @@ const ROWS: RowCfg[] = [
 export class Environment{
   private _g:any; private _h=0;
 
-  start(){ ROWS.forEach(r=>r.M.clear()); }
+  start(){ 
+    registerEffects();                // <-- ensures effects are present in build
+    ROWS.forEach(r=>r.M.clear()); 
+  }
 
   draw(c:CanvasRenderingContext2D, time:number, bgX:number){
     const {width:w,height:h}=c.canvas;
@@ -46,15 +49,15 @@ export class Environment{
     const lx=bgX*sp*.6;
 
     // anchor near camera: base index + small offset in [0,gap)
-    const base=(lx/gap)|0;                // floor
-    const off = lx - base*gap;            // local offset (0..gap)
+    const base=(lx/gap)|0;
+    const off = lx - base*gap;
 
     // draw a fixed window around camera; keep small to limit draw calls
-    const N=((w*inv/gap)|0)+3;            // coverage + small pad
+    const N=((w*inv/gap)|0)+3;
 
     c.save();
     c.scale(sc,sc);
-    c.translate(-off,0);                  // only ever < gap translation
+    c.translate(-off,0);
 
     const y0=(h+drop)*inv;
     for(let i=-N;i<N;i++){
