@@ -17,6 +17,7 @@ const MAPS = [
   { in:"src/maps/map5.json", outJson:"src/maps/map5.rle.json", outTs:"src/levels/level5.ts", prefix:"LEVEL_5" },
   { in:"src/maps/map6.json", outJson:"src/maps/map6.rle.json", outTs:"src/levels/level6.ts", prefix:"LEVEL_6" },
   { in:"src/maps/map7.json", outJson:"src/maps/map7.rle.json", outTs:"src/levels/level7.ts", prefix:"LEVEL_7" },
+  { in:"src/maps/map8.json", outJson:"src/maps/map8.rle.json", outTs:"src/levels/level8.ts", prefix:"LEVEL_8" },
 ];
 
 // --- tiny helpers ---

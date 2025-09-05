@@ -12,10 +12,22 @@ import { hb as getHB } from "../../player/hb";
 import { setScene } from "./SceneManager";
 import { GameOverScene } from "./MenuScene";
 
+// src/engine/scenes/BackgroundScene.ts
+
 const TILE=16, FINISH=3, SPIKE=4;
+
+// keep original feel exactly: camera ease normalized against 60Hz
+const CAM_EASE = .14;
+const CAM_DT   = 1/60;
+
+// background smoothing (simple EMA)
+const BG_EASE  = .18;
+
 let LIDX=0, ctx:CanvasRenderingContext2D|null=null;
 let env=new Environment(), portals=new PortalSystem(), player:Player|null=null;
-let cam:Cam={x:0,y:0}, bgX=0, winT=0, toGameOver=false;
+let cam:Cam={x:0,y:0};
+let bgX=0, bgXPrev=0;
+let winT=0, toGameOver=false;
 
 const stopMusic=()=>{ try{ const g:any=globalThis; g.__sceneMusic?.stop?.(0); g.__sceneMusic=undefined; dispatchEvent(new CustomEvent("scene:stop-music")); }catch{} };
 const drawFinish=(c:CanvasRenderingContext2D,x:number,y:number,s:number)=>{ const h=s>>1; c.fillStyle="#fff"; c.fillRect(x,y,h,h); c.fillStyle="#000"; c.fillRect(x+h,y,h,h); c.fillRect(x,y+h,h,h); c.fillStyle="#fff"; c.fillRect(x+h,y+h,h,h); };
@@ -30,12 +42,11 @@ function go(d=0){
     player.setSpawn(64,24); player.body.pos={x:64,y:24};
   }
   portals.reset?.() ?? portals.clear();
-  bgX=player?player.body.pos.x:bgX;
+  // snap bg to player's x on level switch
+  const target = player ? player.body.pos.x : 0;
+  bgX = bgXPrev = target;
   dispatchEvent(new CustomEvent("scene:start-music",{detail:{level:LIDX}}));
 }
-
-//debug helper for levels not to be used in prod
-try{ (globalThis as any).lvl={ n:()=>go(1), p:()=>go(-1), g:(i:number)=>{LIDX=i|0;go(0)}, r:()=>go(0) }; }catch{}
 
 export const BackgroundScene={
   setCanvas(c:CanvasRenderingContext2D){ ctx=c; },
@@ -48,21 +59,31 @@ export const BackgroundScene={
       if(ctx) player.body.pos={x:64,y:24};
       portals.setAnimator(a); portals.setPlayer(player);
       const m=getCurrentMap(); if(m&&ctx) player.setLevelBounds(m.width,m.height,ctx.canvas.height,TILE);
+      const target = player ? player.body.pos.x : 0;
+      bgX = bgXPrev = target;
     });
     addEventListener("resize",()=>{ if(!ctx||!player) return; const m=getCurrentMap(); if(m) player.setLevelBounds(m.width,m.height,ctx.canvas.height,TILE); });
     portals.attachInput(k,cam);
+
+    // DEV: console level jumper (comment out for prod) — usage: lvl.n(3)
+    //(globalThis as any).lvl={n:(i:number)=>{LIDX=Math.max(0,Math.min(LC-1,(i|0)-1));go(0)}};
   },
 
   update(){
     if(!ctx) return;
     const c=ctx, inp=getInputState();
 
-    if(inp.reset){ player?.reset(); portals.reset?.() ?? portals.clear(); winT=0; toGameOver=false; if(player) bgX=player.body.pos.x; }
+    if(inp.reset){
+      player?.reset(); portals.reset?.() ?? portals.clear(); winT=0; toGameOver=false;
+      const target = player ? player.body.pos.x : 0;
+      bgX = bgXPrev = target;
+    }
 
     if(winT>0){
       if(--winT===0){ toGameOver?setScene(GameOverScene):go(1); }
     }else{
       player?.update(inp,c); portals.tick();
+
       if(player){
         const m=getCurrentMap(); if(m){
           const b=player.body,H=getHB(b),Y0=c.canvas.height-m.height*TILE,
@@ -90,16 +111,31 @@ export const BackgroundScene={
         }
       }
     }
-    const px=player?player.body.pos.x:bgX+((+!!inp.right)-(+!!inp.left))*2; bgX+=(px-bgX)*.18;
-    const m=getCurrentMap(), ww=m?m.width*TILE:1e4, wh=m?m.height*TILE:1e4, py=player?player.body.pos.y:cam.y, cap=c.canvas.height*.7;
-    updateSmoothCamera(cam,px,py,c.canvas.width,cap,ww,wh,.14,1/60,true);
+
+    // --- Camera: original feel (no extra interpolation), dt fixed at 1/60 like before ---
+    const m=getCurrentMap(), ww=m?m.width*TILE:1e4, wh=m?m.height*TILE:1e4;
+    const px = player ? player.body.pos.x : cam.x;
+    const py = player ? player.body.pos.y : cam.y;
+    const cap = c.canvas.height*.7;
+    updateSmoothCamera(cam,px,py,c.canvas.width,cap,ww,wh,CAM_EASE,CAM_DT,true);
+
+    // --- Background: follow PLAYER x with light smoothing ---
+    bgXPrev = bgX;
+    bgX += (px - bgX) * BG_EASE;
   },
 
-  draw(t:number){
+  draw(t:number, alpha:number){
     if(!ctx) return;
     const c=ctx,k=c.canvas,w=k.width,h=k.height,time=t/1000;
-    env.draw(c,time,bgX);
-    c.save(); c.translate((w*.5-cam.x)|0,(h*.5-cam.y)|0);
+
+    // Interpolate only the background for ultra-smooth parallax
+    const bgIx = bgXPrev + (bgX - bgXPrev) * (alpha||0);
+    env.draw(c,time,bgIx);
+
+    // World: integer-snapped camera (no interpolation) to keep the player crisp
+    c.save();
+    c.translate((w*.5 - cam.x)|0, (h*.5 - cam.y)|0);
+
     const m=getCurrentMap();
     if(m){
       drawMapAndColliders(c,m,TILE);

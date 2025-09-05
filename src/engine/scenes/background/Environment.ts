@@ -37,13 +37,31 @@ export class Environment{
     layersFront.forEach(d=>d(c,w,h,time,bgX));
   }
 
+  /** Infinite rows with local anchoring: never translate more than ~gap px. */
   private _row(c:CanvasRenderingContext2D,w:number,h:number,bgX:number,r:RowCfg){
-    const {min,max,sc,sp,gap,drop,M}=r, lx=bgX*sp*.6, inv=1/sc;
-    const si=~~((lx-w*inv)/gap)-1, ei=~~((lx+w*inv*2)/gap)+1;
-    c.save(); c.scale(sc,sc); c.translate(-lx,0);
-    for(let i=si;i<ei;i++){
-      let v=M.get(i) || (M.set(i,generateBuildingVariants(1,min,max,inv)[0]), M.get(i)!);
-      drawBuilding(c, i*gap, (h+drop)*inv - v.h, v, sc);
+    const {min,max,sc,sp,gap,drop,M}=r;
+    const inv=1/sc;
+
+    // world-scroll projected into this layer
+    const lx=bgX*sp*.6;
+
+    // anchor near camera: base index + small offset in [0,gap)
+    const base=(lx/gap)|0;                // floor
+    const off = lx - base*gap;            // local offset (0..gap)
+
+    // draw a fixed window around camera; keep small to limit draw calls
+    const N=((w*inv/gap)|0)+3;            // coverage + small pad
+
+    c.save();
+    c.scale(sc,sc);
+    c.translate(-off,0);                  // only ever < gap translation
+
+    const y0=(h+drop)*inv;
+    for(let i=-N;i<N;i++){
+      const idx=base+i;
+      let v=M.get(idx);
+      if(!v){ v=generateBuildingVariants(1,min,max,inv)[0]; M.set(idx,v); }
+      drawBuilding(c, i*gap, y0 - v.h, v, sc);
     }
     c.restore();
   }

@@ -7,8 +7,6 @@ import { setScene } from "./SceneManager";
 // compact credits rows: "text|scale|color|gap"
 const CREDITS=[
   "FLYKT","",
-  "A TINY GAME FOR",
-  "JS13KGAMES.COM 2025",
   "Thanks for playing!",
 ];
 
@@ -29,6 +27,7 @@ function makeTitleScene(mode:Mode){
     setAnimator(a:AtlasAnimator){ this._anim=a; this._pos=null },
 
     start(){
+      
       this._env.start(); this._t0=0; this._bg0=this._bg1=0;
       const c=this.__ctx; if(c){ c.imageSmoothingEnabled=false; if(!isMenu) this._y0=this._y1=c.canvas.height+30; }
       if(isMenu){

@@ -10,6 +10,7 @@ import * as L4 from "../../levels/level4";
 import * as L5 from "../../levels/level5";
 import * as L6 from "../../levels/level6";
 import * as L7 from "../../levels/level7";
+import * as L8 from "../../levels/level8";
 
 const V = [
   [L1.LEVEL_1_WIDTH, L1.LEVEL_1_HEIGHT, L1.LEVEL_1_BASE64],
@@ -18,7 +19,8 @@ const V = [
   [L4.LEVEL_4_WIDTH, L4.LEVEL_4_HEIGHT, L4.LEVEL_4_BASE64],
   [L5.LEVEL_5_WIDTH, L5.LEVEL_5_HEIGHT, L5.LEVEL_5_BASE64],
   [L6.LEVEL_6_WIDTH, L6.LEVEL_6_HEIGHT, L6.LEVEL_6_BASE64],
-  [L7.LEVEL_7_WIDTH, L7.LEVEL_7_HEIGHT, L7.LEVEL_7_BASE64]
+  [L7.LEVEL_7_WIDTH, L7.LEVEL_7_HEIGHT, L7.LEVEL_7_BASE64],
+  [L8.LEVEL_8_WIDTH, L8.LEVEL_8_HEIGHT, L8.LEVEL_8_BASE64]
 ] as const;
 
 const L = (i: number) => {
@@ -37,12 +39,6 @@ const L = (i: number) => {
 export const LEVEL_COUNT = V.length;
 
 export const loadLevel  = (i: number) => L(i);
-export const loadLevel1 = () => L(0);
-export const loadLevel2 = () => L(1);
-export const loadLevel3 = () => L(2);
-export const loadLevel4 = () => L(3);
-export const loadLevel5 = () => L(4);
-export const loadLevel6 = () => L(5);
-export const loadLevel7 = () => L(6);
+
 
 export { getCurrentMap };
