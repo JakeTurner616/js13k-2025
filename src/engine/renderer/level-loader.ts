@@ -11,6 +11,7 @@ import * as L5 from "../../levels/level5";
 import * as L6 from "../../levels/level6";
 import * as L7 from "../../levels/level7";
 import * as L8 from "../../levels/level8";
+import * as L9 from "../../levels/level9";
 
 const V = [
   [L1.LEVEL_1_WIDTH, L1.LEVEL_1_HEIGHT, L1.LEVEL_1_BASE64],
@@ -20,7 +21,8 @@ const V = [
   [L5.LEVEL_5_WIDTH, L5.LEVEL_5_HEIGHT, L5.LEVEL_5_BASE64],
   [L6.LEVEL_6_WIDTH, L6.LEVEL_6_HEIGHT, L6.LEVEL_6_BASE64],
   [L7.LEVEL_7_WIDTH, L7.LEVEL_7_HEIGHT, L7.LEVEL_7_BASE64],
-  [L8.LEVEL_8_WIDTH, L8.LEVEL_8_HEIGHT, L8.LEVEL_8_BASE64]
+  [L8.LEVEL_8_WIDTH, L8.LEVEL_8_HEIGHT, L8.LEVEL_8_BASE64],
+  [L9.LEVEL_9_WIDTH, L9.LEVEL_9_HEIGHT, L9.LEVEL_9_BASE64]
 ] as const;
 
 const L = (i: number) => {

@@ -66,7 +66,7 @@ export const BackgroundScene={
     portals.attachInput(k,cam);
 
     // DEV: console level jumper (comment out for prod) — usage: lvl.n(3)
-    //(globalThis as any).lvl={n:(i:number)=>{LIDX=Math.max(0,Math.min(LC-1,(i|0)-1));go(0)}};
+    (globalThis as any).lvl={n:(i:number)=>{LIDX=Math.max(0,Math.min(LC-1,(i|0)-1));go(0)}};
   },
 
   update(){
