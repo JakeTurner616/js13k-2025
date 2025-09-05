@@ -4,15 +4,14 @@ import { Packer } from "roadroller";
 
 const input = await fs.readFile("dist/tmp.js", "utf8");
 
-const packer = new Packer(
-  [{ data: input, type: "js", action: "eval" }],
-  { asmJs: true } // optional but good for JS13k
-);
+// Keep action "eval" so Roadroller emits its tuned two-line decoder
+const packer = new Packer([{ data: input, type: "js", action: "eval" }], {
+  asmJs: true
+});
 
 await packer.optimize();
 
 const { firstLine, secondLine } = packer.makeDecoder();
-
 const code = `${firstLine}${secondLine}`;
 
 console.log("Original size:", input.length);
