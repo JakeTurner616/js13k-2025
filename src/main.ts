@@ -1,74 +1,66 @@
-// src/main.ts (updated)
+// src/main.ts (wired to modularized TutorialScene; GameOverScene sourced from MenuScene)
 import { setupCanvas } from "./engine/renderer/initCanvas";
 import { createAnimator } from "./atlas/animationAtlas";
 import { setupInput } from "./engine/input/input";
-import { MenuScene } from "./engine/scenes/MenuScene";
+import { MenuScene, GameOverScene } from "./engine/scenes/MenuScene"; // ✅ both exported here
 import { BackgroundScene } from "./engine/scenes/BackgroundScene";
-import { GameOverScene } from "./engine/scenes/MenuScene";
 import { setScene, loop } from "./engine/scenes/SceneManager";
 import { zzfx, zzfxM, playZzfxMSong } from "./engine/audio/SoundEngine";
 import { retro2song } from "./music/retro2";
-import { TutorialScene } from "./engine/scenes/TutorialScene";
+import { TutorialScene } from "./engine/scenes/tutorial/TutorialScene";
 
-const { ctx } = setupCanvas(580,272);
+const { ctx } = setupCanvas(580, 272);
 setupInput();
+
+// give every scene the canvas
 [MenuScene, TutorialScene, BackgroundScene, GameOverScene].forEach(s => s.setCanvas(ctx));
 
-const mk = (s: any) => { const [i, p, seq, bpm = 125] = s; return zzfxM(i, p, seq, bpm); };
+// simple music setup
+const mk = (s: any) => {
+  const [i, p, seq, bpm = 125] = s;
+  return zzfxM(i, p, seq, bpm);
+};
 const [L, R] = mk(retro2song);
 
-let src: any; const g: any = globalThis;
+let src: any;
+const g: any = globalThis;
 const set = (s?: any) => ((src = s), (g.__sceneMusic = s));
-const stop = () => { try { src?.stop(0) } catch {} set(); };
-const playLvl = (_v: number) => { set(playZzfxMSong(L, R)); };
+const stop = () => {
+  try { src?.stop(0); } catch {}
+  set();
+};
+const playLvl = (_level: number) => {
+  // you can branch on _level if you add more tracks later
+  set(playZzfxMSong(L, R));
+};
 
+// scene-level music events
 addEventListener("scene:stop-music", stop);
-addEventListener("scene:start-music", (e:any)=>{ stop(); playLvl(e?.detail?.level|0); });
+addEventListener("scene:start-music", (e: any) => {
+  stop();
+  playLvl(e?.detail?.level | 0);
+});
 
-/*
-// --- DEV-only ScreenshotScene wiring (hash #shot or F9) ---
-const SHOT = location.hash.includes("shot");
-let ShotScene: any = null;
-const loadShot = async () => {
-  if (ShotScene) return ShotScene;
-  const m = await import("./engine/scenes/ScreenshotScene");
-  ShotScene = m.ScreenshotScene;
-  ShotScene.setCanvas(ctx);
-  return ShotScene;
-};
-const switchToShot = async () => {
-  const S = await loadShot();
-  stop(); // silence current track for clean screenshots
-  setScene(S);
-};
-// expose toggle for console
-(g as any).shot = switchToShot;
-// hotkey: F9 to enter screenshot scene
-addEventListener("keydown", e => { if (e.key === "F9") switchToShot(); });
-// -----------------------------------------------------------
-*/
+// boot animator & scenes
+createAnimator(a => {
+  // only Menu/GameOver need a pre-bound animator here;
+  // TutorialScene builds its own animator internally on start.
+  MenuScene.setAnimator?.(a);
+  GameOverScene.setAnimator?.(a);
 
-createAnimator(a=>{
-  MenuScene.setAnimator(a);
-  GameOverScene.setAnimator(a);
-
-  // Start with the tutorial; it will hand off to BackgroundScene on completion.
-  MenuScene.onClick = () => { 
-    zzfx(); 
-    g.D = g.T = g._t = 0; 
-    setScene(TutorialScene); 
-    playLvl(0); 
+  // start at menu; click → Tutorial → Background (handled by scenes)
+  MenuScene.onClick = () => {
+    zzfx();
+    g.D = g.T = g._t = 0;
+    setScene(TutorialScene);
+    playLvl(0);
   };
 
-  // Production-safe boot:
   setScene(MenuScene);
   requestAnimationFrame(loop);
 });
 
-
-// debug helpers
-//try {
-//  (globalThis as any).gover = () => setScene(GameOverScene);
-//  (globalThis as any).menu  = () => setScene(MenuScene);
-//  (globalThis as any).tut   = () => setScene(TutorialScene);
-//} catch {}
+// optional debug helpers
+// (globalThis as any).gover = () => setScene(GameOverScene);
+// (globalThis as any).menu  = () => setScene(MenuScene);
+// (globalThis as any).tut   = () => setScene(TutorialScene);
