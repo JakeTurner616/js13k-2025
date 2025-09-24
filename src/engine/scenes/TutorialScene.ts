@@ -716,15 +716,7 @@ export const TutorialScene = {
       c.restore();
     }
 
-    // Optional subtle “win” overlay during celebration (kept minimal)
-    if (winT > 0) {
-      const k = Math.min(1, (WIN_TICKS - winT) / 12);
-      c.save();
-      c.globalAlpha = 0.15 * k;
-      c.fillStyle = "#7aa2ff";
-      c.fillRect(0, 0, w, h);
-      c.restore();
-    }
+
 
     drawLegend(c);
   }

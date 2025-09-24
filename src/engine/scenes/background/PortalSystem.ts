@@ -5,6 +5,7 @@ import { hc } from "../../../player/hb";
 import { zzfx } from "../../audio/SoundEngine";
 import { port } from "../../../sfx/port";
 import { zip } from "../../../sfx/zip";
+import { wrong } from "../../../sfx/wrong";
 import type { Player } from "../../../player/Player";
 import type { Cam } from "../../camera/Camera";
 
@@ -84,6 +85,7 @@ export class PortalSystem{
         }
       }else{
         tr=tY; ty+=syn; tY+=dY; if(!inb(tx,ty)) break;
+        if(sol(ty,ty)){/* no-op - typo guard */}
         if(sol(tx,ty)){
           const id=tid(tx,ty),ban=id===2||id===3||id===4;
           return {hx:sx+dx*tr,hy:sy+dy*tr,ax:"y" as const,sX:sxn,sY:syn,ban,id,tx,ty};
@@ -101,7 +103,9 @@ export class PortalSystem{
 
     // Inform listeners (tutorial) about shot outcome
     if(!r){
-      this.onShot?.({k:sx as any, sx, sy, ax, ay, hit:false, hitBlack:false, banned:false, impactX:ax, impactY:ay});
+      // MISS: play "wrong" SFX and report as miss
+      try{ zzfx?.(...(wrong as unknown as number[])) }catch{}
+      this.onShot?.({k, sx, sy, ax, ay, hit:false, hitBlack:false, banned:false, impactX:ax, impactY:ay});
       return;
     }else{
       const hitBlack=!r.ban;
@@ -111,8 +115,13 @@ export class PortalSystem{
       });
     }
 
-    // Sound only on valid stick (not banned)
-    if(!r.ban) try{ zzfx?.(...(zip as unknown as number[])) }catch{}
+    // Sound feedback on hit:
+    //  - valid (black) stick  → zip
+    //  - banned (grey/finish/spike) → wrong
+    try{
+      if(r.ban) zzfx?.(...(wrong as unknown as number[]));
+      else zzfx?.(...(zip as unknown as number[]));
+    }catch{}
 
     const L=hypot(dx,dy)||1, d=hypot(r.hx-sx,r.hy-sy),
           o=(r.ax==="x"?(r.sX>0?"L":"R"):(r.sY>0?"U":"D")) as O;
