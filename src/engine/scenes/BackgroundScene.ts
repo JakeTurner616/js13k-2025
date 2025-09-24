@@ -24,6 +24,12 @@ let cam:Cam={x:0,y:0}, bgX=0, bgXPrev=0, winT=0, toGameOver=false;
 const G:any=globalThis; // G.D deaths, G.T ms, G._t lastDraw
 let prevR=false;
 
+// NEW: allow other scenes to request a specific starting level (0-based)
+let PENDING_START_LIDX: number | null = null;
+export function setPendingStartLevelZeroBased(i:number){
+  PENDING_START_LIDX = Math.max(0, Math.min(LC-1, (i|0)));
+}
+
 const drawFinish=(c:CanvasRenderingContext2D,x:number,y:number,s:number)=>{ const h=s>>1; c.fillStyle="#fff"; c.fillRect(x,y,h,h); c.fillStyle="#000"; c.fillRect(x+h,y,h,h); c.fillRect(x,y+h,h,h); c.fillStyle="#fff"; c.fillRect(x+h,y+h,h,h); };
 
 function go(d=0){
@@ -37,6 +43,8 @@ function go(d=0){
   }
   portals.reset?.() ?? portals.clear();
   const target=player?player.body.pos.x:0; bgX=bgXPrev=target;
+
+  // 🔊 start/refresh music on every level change
   dispatchEvent(new CustomEvent("scene:start-music",{detail:{level:LIDX}}));
 }
 
@@ -45,7 +53,14 @@ export const BackgroundScene={
   start(){
     if(!ctx) return;
     const k=ctx.canvas; cam.x=k.width*.5; cam.y=k.height*.5;
-    env.start(); L(0);
+
+    // Consume any pending start index immediately (prevents one-frame flicker).
+    LIDX = (PENDING_START_LIDX!=null) ? PENDING_START_LIDX : 0;
+    PENDING_START_LIDX = null;
+
+    env.start();
+    L(LIDX);
+
     createAnimator(a=>{
       // Count deaths at the player's death flow (spikes/OOB/reset) + play die SFX
       player=createPlayer(a,{ 
@@ -59,9 +74,16 @@ export const BackgroundScene={
       const mp=getCurrentMap(); if(mp&&ctx) player.setLevelBounds(mp.width,mp.height,ctx.canvas.height,TILE);
       const target=player?player.body.pos.x:0; bgX=bgXPrev=target;
     });
+
     addEventListener("resize",()=>{ if(!ctx||!player) return; const mp=getCurrentMap(); if(mp) player.setLevelBounds(mp.width,mp.height,ctx.canvas.height,TILE); });
     portals.attachInput(k,cam);
+
+    // Expose level changer (1-based external API) for later transitions
     (globalThis as any).lvl={n:(i:number)=>{LIDX=Math.max(0,Math.min(LC-1,(i|0)-1));go(0)}};
+
+    // 🔊 ensure music is started when this scene boots (e.g. after Tutorial)
+    // This mirrors what `go()` does for intra-scene level changes.
+    dispatchEvent(new CustomEvent("scene:start-music",{detail:{level:LIDX}}));
   },
 
   update(){

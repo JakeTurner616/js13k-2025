@@ -1,11 +1,12 @@
 // src/engine/scenes/tutorial/TutorialUI.ts
 //
 // Tutorial UI module: world-space toasts, pings, tile-corner highlights,
-// and the state-based "portals only stick to BLACK" banner.
+// the state-based portal banner, and near-player jump/aim/release hints.
+// Now with screen-clamped toasts/hints so boxes don't spill off-canvas,
+// and color-coded M1/M2 in the top-of-screen prompt.
 //
-// No help/skip feature: there is **no** H-to-force-help logic exported here.
-// The scene tells this module when to show or hide the "needs portal" state,
-// and when to trigger burst highlights or toasts based on raycast results.
+// No help/skip feature.
+//
 
 import { drawText as D } from "../../font/fontEngine";
 import { getCurrentMap } from "../../renderer/level-loader";
@@ -98,12 +99,70 @@ function measureTokens(tokens: Token[]) {
   return w ? (w - 1) : 0;
 }
 
+// ————————————————————————————————————————————————————————————————————————
+// Screen-space clamping helpers (for world-drawn labels/hints)
+// Assumes the world->screen transform is a simple translate (which our scene uses).
+// If you later add scaling/rotation, update these to use the full matrix inverse.
+// ————————————————————————————————————————————————————————————————————————
+
+function getScreenFromWorld(wx: number, wy: number) {
+  const m = ctx!.getTransform();
+  const sx = m.a * wx + m.c * wy + m.e;
+  const sy = m.b * wx + m.d * wy + m.f;
+  return { sx, sy };
+}
+
+function nudgeWorldForRect(
+  wx: number,
+  wy: number,
+  rectLeft: number,
+  rectTop: number,
+  rectW: number,
+  rectH: number
+) {
+  if (!ctx) return { wx, wy };
+  const w = ctx.canvas.width, h = ctx.canvas.height;
+
+  let dx = 0, dy = 0;
+  const right = rectLeft + rectW;
+  const bottom = rectTop + rectH;
+
+  if (rectLeft < 0)      dx = -rectLeft;
+  else if (right > w)    dx = w - right;
+
+  if (rectTop < 0)       dy = -rectTop;
+  else if (bottom > h)   dy = h - bottom;
+
+  // Our transform is translation-only, so world nudge equals screen nudge.
+  // If scaling is added later, divide by scale here.
+  return { wx: wx + dx, wy: wy + dy };
+}
+
+// ————————————————————————————————————————————————————————————————————————
+// Label drawing with clamping
+// ————————————————————————————————————————————————————————————————————————
+
 function drawWorldLabelTokens(c:CanvasRenderingContext2D, wx:number, wy:number, tokens:Token[]) {
   const tw = measureTokens(tokens);
+  const pad = 3;
+  const boxW = tw + pad * 2;
+  const boxH = 12; // fixed height for token strip
+
+  // Compute would-be screen rect
+  const { sx, sy } = getScreenFromWorld(wx, wy);
+  const rectLeft = (sx - (tw / 2)) - pad;
+  const rectTop  = (sy - 12) - pad;
+
+  // Nudge in world to keep on-screen
+  const nudged = nudgeWorldForRect(wx, wy, rectLeft, rectTop, boxW, boxH);
+  wx = nudged.wx; wy = nudged.wy;
+
+  // Recompute top-left (world) after nudge
   const x0 = (wx - (tw/2))|0, y0 = (wy - 12)|0;
+
   c.save();
   c.fillStyle = "#000b";
-  c.fillRect(x0-3, y0-3, tw+6, 12);
+  c.fillRect(x0 - pad, y0 - pad, boxW, boxH);
   let x = x0;
   for (const tk of tokens) {
     D(c, tk.text, x+1, y0+1, 1, "#000");
@@ -111,6 +170,26 @@ function drawWorldLabelTokens(c:CanvasRenderingContext2D, wx:number, wy:number, 
     x += tk.text.length * 6;
   }
   c.restore();
+}
+
+function drawWorldLabelText(c:CanvasRenderingContext2D, wx:number, wy:number, text:string) {
+  const tw = text.length*6 - 1;
+  const pad = 3;
+  const boxW = tw + pad * 2;
+  const boxH = 12;
+
+  const { sx, sy } = getScreenFromWorld(wx, wy);
+  const rectLeft = (sx - (tw / 2)) - pad;
+  const rectTop  = (sy - 12) - pad;
+
+  const nudged = nudgeWorldForRect(wx, wy, rectLeft, rectTop, boxW, boxH);
+  wx = nudged.wx; wy = nudged.wy;
+
+  const x = (wx - (tw/2))|0, y = (wy - 12)|0;
+
+  c.fillStyle = "#000b"; c.fillRect(x - pad, y - pad, boxW, boxH);
+  D(c, text, x+1, y+1, 1, "#000");
+  D(c, text, x,   y,   1, "#e5e7eb");
 }
 
 function drawTileCorners(
@@ -282,7 +361,7 @@ export function drawWorld(c:CanvasRenderingContext2D, timeSec:number, cam:{x:num
     c.restore();
   }
 
-  // Toasts
+  // Toasts (with screen-space clamping via draw helpers)
   for (const wt of wtoasts) {
     const fadeIn  = Math.min(1, wt.t/0.15);
     const fadeOut = Math.min(1, (wt.dur - wt.t)/0.25);
@@ -291,34 +370,50 @@ export function drawWorld(c:CanvasRenderingContext2D, timeSec:number, cam:{x:num
     c.save(); c.globalAlpha = alpha;
     if (wt.tokens) drawWorldLabelTokens(c, wt.wx, wt.wy + bob, wt.tokens);
     else if (wt.text) {
-      const tw = wt.text.length*6 - 1, x = (wt.wx - (tw/2))|0, y = (wt.wy + bob - 12)|0;
-      c.fillStyle = "#000b"; c.fillRect(x-3, y-3, tw+6, 12);
-      D(c, wt.text, x+1, y+1, 1, "#000");
-      D(c, wt.text, x,   y,   1, "#e5e7eb");
+      drawWorldLabelText(c, wt.wx, wt.wy + bob, wt.text);
     }
     c.restore();
   }
 }
 
-// HUD drawing (called in screen space)
-export function drawHud(c:CanvasRenderingContext2D, timeSec:number, tutorialPrompt:string) {
+// ————————————————————————————————————————————————————————————————————————
+// HUD drawing (accepts either a string or color tokens)
+// ————————————————————————————————————————————————————————————————————————
+export function drawHud(
+  c: CanvasRenderingContext2D,
+  timeSec: number,
+  tutorial: string | Token[]
+) {
   const w = c.canvas.width, h = c.canvas.height;
 
-  // Main tutorial prompt
-  const lines = tutorialPrompt.split("\n");
+  // Compute width & draw box
+  let tw = 0;
   const padX = 6, padY = 6;
-  const tw = Math.max(...lines.map(t => (t.length * 6 - 1)));
-  const x = ((w - tw) / 2) | 0;
   const y = 8;
-  const boxH = lines.length * 8;
+
+  if (typeof tutorial === "string") {
+    tw = tutorial.length * 6 - 1;
+  } else {
+    tw = measureTokens(tutorial);
+  }
+
+  const x = ((w - tw) / 2) | 0;
+  const boxH = 12;
 
   c.fillStyle = "#0009";
   c.fillRect(x - padX, y - padY, tw + padX * 2, boxH + padY * 2);
-  let yy = y;
-  for (const line of lines) {
-    D(c, line, x + 1, yy + 1, 1, "#000");
-    D(c, line, x,     yy,     1, "#e5e7eb");
-    yy += 8;
+
+  // Text
+  if (typeof tutorial === "string") {
+    D(c, tutorial, x + 1, y + 1, 1, "#000");
+    D(c, tutorial, x,     y,     1, "#e5e7eb");
+  } else {
+    let xx = x;
+    for (const tk of tutorial) {
+      D(c, tk.text, xx + 1, y + 1, 1, "#000");
+      D(c, tk.text, xx,     y,     1, tk.color);
+      xx += tk.text.length * 6;
+    }
   }
 
   // State-based “Portals only stick to BLACK…” banner (no manual help key)
@@ -340,37 +435,50 @@ export function drawHud(c:CanvasRenderingContext2D, timeSec:number, tutorialProm
   }
 }
 
-// Utility text builders (re-exported for scene)
-export function promptForStep(): string {
-  return "Hold SPACE to charge jump • Aim A/D (←/→) • Adjust power S/↓ • Release to jump";
+// ————————————————————————————————————————————————————————————————————————
+// Top-of-screen prompt builders
+// ————————————————————————————————————————————————————————————————————————
+
+// Back-compat: plain string (will render without colors if passed to drawHud)
+
+
+// Preferred: color-coded tokens for M1/M2
+export function promptForStepTokens(): Token[] {
+  return [
+    { text: "Aim with mouse cursor, shoot portals with ", color: "#e5e7eb" },
+    { text: "M1", color: "#28f" },
+    { text: " or ", color: "#e5e7eb" },
+    { text: "M2", color: "#f80" },
+    { text: ".", color: "#e5e7eb" },
+  ];
 }
 
 // Convenience builders for common token sets the scene might want
 export function tokensGreyGuidance(): Token[] {
   return [
     { text: "Use ", color: "#e5e7eb" },
-    { text: "M1",  color: "#7aa2ff" },
+    { text: "M1",  color: "#28f" },
     { text: " ",   color: "#e5e7eb" },
     { text: "&",   color: "#e5e7eb" },
     { text: " ",   color: "#e5e7eb" },
-    { text: "M2",  color: "#f7c948" },
+    { text: "M2",  color: "#f80" },
     { text: " on ", color: "#e5e7eb" },
-    { text: "BLACK", color: "#7aa2ff" },
-    { text: " tiles (not ", color: "#e5e7eb" },
-    { text: "GREY", color: "#ff4d4d" },
+    { text: "BLACK", color: "#e5e7eb" },
+    { text: " tiles (", color: "#e5e7eb" },
+    { text: "not GREY", color: "#ff4d4d" },
     { text: ")",    color: "#e5e7eb" },
   ];
 }
 export function tokensGenericMiss(): Token[] {
   return [
     { text: "Use ", color: "#e5e7eb" },
-    { text: "M1",  color: "#7aa2ff" },
+    { text: "M1",  color: "#28f" },
     { text: " ",   color: "#e5e7eb" },
     { text: "&",   color: "#e5e7eb" },
     { text: " ",   color: "#e5e7eb" },
-    { text: "M2",  color: "#f7c948" },
+    { text: "M2",  color: "#f80" },
     { text: " on ", color: "#e5e7eb" },
-    { text: "BLACK", color: "#7aa2ff" },
+    { text: "BLACK", color: "#e5e7eb" },
     { text: " tiles", color: "#e5e7eb" },
     { text: ".", color: "#e5e7eb" },
   ];
@@ -381,4 +489,88 @@ export function tokensAvoidSpikes(): Token[] {
     { text: "SPIKES",         color: "#ff4d4d" },
     { text: " - AVOID!",      color: "#e5e7eb" },
   ];
+}
+
+// ————————————————————————————————————————————————————————————————————————
+// NEW: Near-player contextual hints for jump/aim/release (with clamping)
+// ————————————————————————————————————————————————————————————————————————
+
+export type JumpHintState = {
+  grounded: boolean;
+  jumpHeld: boolean;
+  recentlyReleased: boolean; // true for a short window after releasing jump
+  aimLeft: boolean;
+  aimRight: boolean;
+  powerDown: boolean; // S/Down
+};
+
+/**
+ * Draws lightweight step-by-step hints near the player.
+ * Call from inside world transform. (wx, wy) should be near player head.
+ */
+// Add near other module-level state in src/engine/scenes/tutorial/TutorialUI.ts
+let groundedSinceMs = -1;
+
+// Replace drawPlayerHints with this version
+export function drawPlayerHints(
+  c: CanvasRenderingContext2D,
+  wx: number,
+  wy: number,
+  s: JumpHintState
+) {
+  // Block hints right after a jump release
+  if (s.recentlyReleased) {
+    groundedSinceMs = -1;
+    return;
+  }
+
+  // Track how long we've been grounded
+  const now = (typeof performance !== "undefined" ? performance.now() : Date.now());
+  if (!s.grounded) {
+    groundedSinceMs = -1;
+    return; // must be grounded to show
+  }
+  if (groundedSinceMs < 0) groundedSinceMs = now;
+
+  // Require at least 0.5s grounded before showing the jump menu
+  if (now - groundedSinceMs < 500) return;
+
+  const padX = 4, padY = 4, lh = 8;
+  const y = wy + 24; // place BELOW the player
+
+  const lines = s.jumpHeld
+    ? [
+        "• Aim A/D or ←/→",
+        "• Adjust power S/↓",
+        "• Release to jump",
+      ]
+    : [
+        "• Hold SPACE",
+      ];
+
+  const tw = Math.max(...lines.map(t => t.length * 6 - 1));
+  const boxW = tw + padX * 2;
+  const boxH = lines.length * lh + padY * 2;
+
+  // Compute would-be rect in screen, then nudge world position to keep it on-canvas
+  const { sx, sy } = getScreenFromWorld(wx, y);
+  const rectLeft = (sx - (tw / 2)) - padX;
+  const rectTop  = sy - padY;
+
+  const nudged = nudgeWorldForRect(wx, y, rectLeft, rectTop, boxW, boxH);
+  const nx = nudged.wx, ny = nudged.wy;
+
+  // Draw bubble at nudged position
+  const x0 = (nx - (tw / 2)) | 0;
+  let yy = ny;
+
+  c.save();
+  c.fillStyle = "#000a";
+  c.fillRect(x0 - padX, yy - padY, boxW, boxH);
+  for (const ln of lines) {
+    D(c, ln, x0 + 1, yy + 1, 1, "#000");
+    D(c, ln, x0,     yy,     1, "#e5e7eb");
+    yy += lh;
+  }
+  c.restore();
 }
