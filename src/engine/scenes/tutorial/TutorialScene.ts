@@ -1,7 +1,10 @@
-// src/engine/scenes/TutorialScene.ts
+// src/engine/scenes/tutorial/TutorialScene.ts
 //
 // Tutorial scene (core). No help/skip feature.
 // The UI layer (toasts/pings/highlights/banner) lives in tutorial/TutorialUI.ts.
+// CHANGE: Spawn point shifted slightly left via SPAWN_SHIFT_X. Use CURRENT_SPAWN
+//         everywhere instead of the hard-coded INITIAL_SPAWN when referencing
+//         spawn-relative UI (e.g., spike warning toast).
 
 import { drawMapAndColliders } from "../../renderer/render";
 import { loadLevel as L, getCurrentMap } from "../../renderer/level-loader";
@@ -28,7 +31,12 @@ const CAM_EASE = 0.14;
 const CAM_DT = 1 / 60;
 const BG_EASE = 0.18;
 
+// Original anchor (kept for reference)
 const INITIAL_SPAWN = { x: 64, y: 24 }; // match BackgroundScene
+
+// Move spawn a bit to the left (negative = left, positive = right)
+const SPAWN_SHIFT_X = -16; // one tile left; try -8 for half-tile
+let CURRENT_SPAWN = { x: INITIAL_SPAWN.x + SPAWN_SHIFT_X, y: INITIAL_SPAWN.y };
 
 // Tile IDs used by renderer/levels
 const GREY_TILE_ID  = 2;
@@ -94,8 +102,8 @@ export const TutorialScene = {
       portals.setAnimator(a);
       portals.setPlayer(player);
 
-      // Fixed spawn
-      player.setSpawn(INITIAL_SPAWN.x, INITIAL_SPAWN.y);
+      // Use shifted spawn
+      player.setSpawn(CURRENT_SPAWN.x, CURRENT_SPAWN.y);
       player.respawn();
 
       // Teleport → clear portal hint
@@ -214,7 +222,8 @@ export const TutorialScene = {
                 const yth = sy + ((Math.abs(x - cx) * 2) | 0);
                 if (By > yth && Ty < sy + s) {
                   UI.burstSpike(1.8);
-                  UI.pushWorldToastText("AVOID SPIKES!", INITIAL_SPAWN.x, INITIAL_SPAWN.y - 12, 1.3);
+                  // Use CURRENT_SPAWN for toast position (reflect shifted spawn)
+                  UI.pushWorldToastText("AVOID SPIKES!", CURRENT_SPAWN.x, CURRENT_SPAWN.y - 12, 1.3);
                   player.reset?.();
                   UI.clearPortalHint();
                   break outer;
