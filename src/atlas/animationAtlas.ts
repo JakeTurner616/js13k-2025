@@ -40,7 +40,7 @@ for (const friendly in nameToKey){
   else console.warn(`[atlas] missing frame for "${friendly}" → "${token}"`);
 }
 
-// Animation list — cols from sourceSize.w / FW (not trimmed width!)
+// Animation list - cols from sourceSize.w / FW (not trimmed width!)
 function mk(name:keyof typeof nameToKey, fps:number, frames?:number, dx=0, dy=0): AnimationConfig | null {
   const m = meta[name as string]; if(!m) return null;
   const autoCols = Math.max(1, (m.srcW / FW) | 0);

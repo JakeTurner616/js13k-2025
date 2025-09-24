@@ -58,14 +58,14 @@ for (const [friendly, longKey] of ENTRIES) {
 
 fs.mkdirSync(OUT_DIR, { recursive: true });
 
-// texture.ts — compact JSON-as-TS
-const ts = `// Auto-generated — do not edit
+// texture.ts - compact JSON-as-TS
+const ts = `// Auto-generated - do not edit
 export default ${JSON.stringify({ frames: outFrames })} as const;
 `;
 fs.writeFileSync(OUT_TS, ts);
 
-// textureNames.ts — friendly → tiny key
-const nm = `// Auto-generated — do not edit
+// textureNames.ts - friendly → tiny key
+const nm = `// Auto-generated - do not edit
 export const nameToKey = ${JSON.stringify(nameToKey)} as const;
 `;
 fs.writeFileSync(OUT_MAP, nm);

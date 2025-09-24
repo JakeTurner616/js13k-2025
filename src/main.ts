@@ -8,10 +8,11 @@ import { GameOverScene } from "./engine/scenes/MenuScene";
 import { setScene, loop } from "./engine/scenes/SceneManager";
 import { zzfx, zzfxM, playZzfxMSong } from "./engine/audio/SoundEngine";
 import { retro2song } from "./music/retro2";
+import { TutorialScene } from "./engine/scenes/TutorialScene";
 
 const { ctx } = setupCanvas(580,272);
 setupInput();
-[MenuScene, BackgroundScene, GameOverScene].forEach(s => s.setCanvas(ctx));
+[MenuScene, TutorialScene, BackgroundScene, GameOverScene].forEach(s => s.setCanvas(ctx));
 
 const mk = (s: any) => { const [i, p, seq, bpm = 125] = s; return zzfxM(i, p, seq, bpm); };
 const [L, R] = mk(retro2song);
@@ -51,16 +52,13 @@ createAnimator(a=>{
   MenuScene.setAnimator(a);
   GameOverScene.setAnimator(a);
 
-  // Start game from menu
-  MenuScene.onClick = () => { zzfx(); g.D=g.T=g._t=0; setScene(BackgroundScene); playLvl(0); };
-
-  // DEV-only ScreenshotScene boot logic removed from prod:
-  // if (SHOT) {
-  //   switchToShot().then(() => requestAnimationFrame(loop));
-  // } else {
-  //   setScene(MenuScene);
-  //   requestAnimationFrame(loop);
-  // }
+  // Start with the tutorial; it will hand off to BackgroundScene on completion.
+  MenuScene.onClick = () => { 
+    zzfx(); 
+    g.D = g.T = g._t = 0; 
+    setScene(TutorialScene); 
+    playLvl(0); 
+  };
 
   // Production-safe boot:
   setScene(MenuScene);
@@ -72,4 +70,5 @@ createAnimator(a=>{
 //try {
 //  (globalThis as any).gover = () => setScene(GameOverScene);
 //  (globalThis as any).menu  = () => setScene(MenuScene);
+//  (globalThis as any).tut   = () => setScene(TutorialScene);
 //} catch {}

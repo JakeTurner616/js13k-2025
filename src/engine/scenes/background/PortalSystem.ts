@@ -12,6 +12,17 @@ type O="R"|"L"|"U"|"D";
 type P={k:"A"|"B";x:number;y:number;a:number;o:O};
 type Sh={k:"A"|"B";x:number;y:number;dx:number;dy:number;hx:number;hy:number;a:number;o:O;t:number;th:number;ban:boolean};
 
+type ShotInfo = {
+  k:"A"|"B";
+  sx:number; sy:number;     // ray start (player center)
+  ax:number; ay:number;     // aim point (mouse world)
+  hit:boolean;              // hit any solid tile
+  hitBlack:boolean;         // hit and NOT banned
+  banned:boolean;           // hit GREY/FINISH/SPIKE etc.
+  impactX:number; impactY:number; // where ray ended or clicked
+  tileId?:number; tx?:number; ty?:number; // hit tile info (if any)
+};
+
 const T=16,PW=32,PH=32,MD=2e3,S=640,{min,sign,hypot,PI}=Math;
 const ang=(o:O)=>o==="R"?PI:o==="L"?0:o==="U"?PI/2:-PI/2;
 
@@ -22,6 +33,9 @@ export class PortalSystem{
   sc=document.createElement("canvas");
   sx=this.sc.getContext("2d")!;
   anim:any=null; n=1; fps=10; fw=32; fh=32;
+
+  // New: shot outcome callback (consumed by TutorialScene)
+  onShot?: (info: ShotInfo)=>void;
 
   constructor(){ this.sc.width=PW; this.sc.height=PH; }
   reset(){ this.A=this.B=undefined; this.Q.length=this.cool=0; this.last=undefined; }
@@ -38,7 +52,7 @@ export class PortalSystem{
       const m=getCurrentMap(); if(!m) return;
       const {wx,wy}=s2w(e.clientX,e.clientY,cv,cam);
       const b=this.pl?.body,c=b?hc(b):0 as any,cx=c?c.cx:wx,cy=c?c.cy:wy;
-      this.spawn(e.button===2?"B":"A",cx,cy,wx-cx,wy-cy,m,cv.height);
+      this.spawn(e.button===2?"B":"A",cx,cy,wx-cx,wy-cy,m,cv.height,wx,wy);
     };
     cv.addEventListener("mousedown",this.h);
   }
@@ -47,7 +61,10 @@ export class PortalSystem{
     cv.oncontextmenu=null;
   }
 
-  private cast(sx:number,sy:number,dx:number,dy:number,m:{width:number;height:number;tiles:Uint32Array|number[]},cH:number){
+  private cast(
+    sx:number,sy:number,dx:number,dy:number,
+    m:{width:number;height:number;tiles:Uint32Array|number[]},cH:number
+  ){
     let L=hypot(dx,dy)||1; dx/=L; dy/=L;
     const oY=cH-m.height*T, inb=(x:number,y:number)=>x>=0&&y>=0&&x<m.width&&y<m.height;
     const tid=(x:number,y:number)=>inb(x,y)?(m.tiles as any)[y*m.width+x]|0:0, sol=(x:number,y:number)=>tid(x,y)>0;
@@ -61,18 +78,42 @@ export class PortalSystem{
     for(let tr=0; tr<=MD;){
       if(tX<tY){
         tr=tX; tx+=sxn; tX+=dX; if(!inb(tx,ty)) break;
-        if(sol(tx,ty)){ const id=tid(tx,ty),ban=id===2||id===3||id===4; return {hx:sx+dx*tr,hy:sy+dy*tr,ax:"x" as const,sX:sxn,sY:syn,ban}; }
+        if(sol(tx,ty)){
+          const id=tid(tx,ty),ban=id===2||id===3||id===4;
+          return {hx:sx+dx*tr,hy:sy+dy*tr,ax:"x" as const,sX:sxn,sY:syn,ban,id,tx,ty};
+        }
       }else{
         tr=tY; ty+=syn; tY+=dY; if(!inb(tx,ty)) break;
-        if(sol(ty?tx:tx,ty)){ const id=tid(tx,ty),ban=id===2||id===3||id===4; return {hx:sx+dx*tr,hy:sy+dy*tr,ax:"y" as const,sX:sxn,sY:syn,ban}; }
+        if(sol(tx,ty)){
+          const id=tid(tx,ty),ban=id===2||id===3||id===4;
+          return {hx:sx+dx*tr,hy:sy+dy*tr,ax:"y" as const,sX:sxn,sY:syn,ban,id,tx,ty};
+        }
       }
     }
     return null;
   }
 
-  private spawn(k:"A"|"B",sx:number,sy:number,dx:number,dy:number,m:any,cH:number){
-    const r=this.cast(sx,sy,dx,dy,m,cH); if(!r) return;
+  private spawn(
+    k:"A"|"B",sx:number,sy:number,dx:number,dy:number,
+    m:any,cH:number, ax:number, ay:number
+  ){
+    const r=this.cast(sx,sy,dx,dy,m,cH);
+
+    // Inform listeners (tutorial) about shot outcome
+    if(!r){
+      this.onShot?.({k:sx as any, sx, sy, ax, ay, hit:false, hitBlack:false, banned:false, impactX:ax, impactY:ay});
+      return;
+    }else{
+      const hitBlack=!r.ban;
+      this.onShot?.({
+        k, sx, sy, ax, ay, hit:true, hitBlack, banned:r.ban,
+        impactX:r.hx, impactY:r.hy, tileId:r.id, tx:r.tx, ty:r.ty
+      });
+    }
+
+    // Sound only on valid stick (not banned)
     if(!r.ban) try{ zzfx?.(...(zip as unknown as number[])) }catch{}
+
     const L=hypot(dx,dy)||1, d=hypot(r.hx-sx,r.hy-sy),
           o=(r.ax==="x"?(r.sX>0?"L":"R"):(r.sY>0?"U":"D")) as O;
     this.Q.push({k,x:sx,y:sy,dx:dx/L,dy:dy/L,hx:r.hx,hy:r.hy,a:ang(o),o,t:0,th:min(d,MD)/S,ban:r.ban});

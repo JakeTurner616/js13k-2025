@@ -82,7 +82,7 @@ const glyphMap = usedChars.join("");
 const encodedData = usedChars.map(c=>encodeGlyph(FONT[c])).join("");
 
 /* Emit runtime module */
-const out=`// Auto-generated font (base36 compressed 5x7) — ONLY used glyphs
+const out=`// Auto-generated font (base36 compressed 5x7) - ONLY used glyphs
 
 export const glyphs: string = "${glyphMap}";
 export const data: string = "${encodedData}";
