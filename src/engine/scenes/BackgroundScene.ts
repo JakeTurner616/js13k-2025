@@ -91,7 +91,11 @@ export const BackgroundScene={
     const c=ctx, inp=getInputState();
 
     // R edge → same death flow (counts once + plays SFX via onDeath)
-    if(inp.reset && !prevR) player?.reset?.();
+    // ALSO: clear portals on reset
+    if(inp.reset && !prevR){
+      player?.reset?.();
+      portals.reset?.() ?? portals.clear();
+    }
     prevR=!!inp.reset;
 
     if(winT>0){

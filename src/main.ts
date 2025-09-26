@@ -1,4 +1,4 @@
-// src/main.ts (wired to modularized TutorialScene; GameOverScene sourced from MenuScene)
+// src/main.ts
 import { setupCanvas } from "./engine/renderer/initCanvas";
 import { createAnimator } from "./atlas/animationAtlas";
 import { setupInput } from "./engine/input/input";
@@ -41,6 +41,15 @@ addEventListener("scene:start-music", (e: any) => {
   playLvl(e?.detail?.level | 0);
 });
 
+// 🔒 Global input suppression helper for scene switches initiated here as well.
+function suppressPointerBurst(ms = 350){
+  const stop = (e: Event) => { e.stopImmediatePropagation(); e.preventDefault(); };
+  const opts = { capture: true, passive: false } as AddEventListenerOptions;
+  const types = ["pointerdown","pointerup","mousedown","mouseup","click","touchstart","touchend"] as const;
+  types.forEach(t => addEventListener(t, stop as any, opts));
+  setTimeout(() => types.forEach(t => removeEventListener(t, stop as any, opts)), ms);
+}
+
 // boot animator & scenes
 createAnimator(a => {
   // only Menu/GameOver need a pre-bound animator here;
@@ -52,15 +61,22 @@ createAnimator(a => {
   MenuScene.onClick = () => {
     zzfx();
     g.D = g.T = g._t = 0;
+
+    // Clean up input & portals so the start click/tap doesn't shoot a portal
+    suppressPointerBurst();
+    dispatchEvent(new Event("portals:clear"));
+
     setScene(TutorialScene);
     playLvl(0);
   };
 
+  // Initial scene
+  dispatchEvent(new Event("portals:clear"));
   setScene(MenuScene);
   requestAnimationFrame(loop);
 });
 
 // optional debug helpers
-// (globalThis as any).gover = () => setScene(GameOverScene);
-// (globalThis as any).menu  = () => setScene(MenuScene);
-// (globalThis as any).tut   = () => setScene(TutorialScene);
+// (globalThis as any).gover = () => { suppressPointerBurst(); dispatchEvent(new Event("portals:clear")); setScene(GameOverScene); };
+// (globalThis as any).menu  = () => { suppressPointerBurst(); dispatchEvent(new Event("portals:clear")); setScene(MenuScene); };
+// (globalThis as any).tut   = () => { suppressPointerBurst(); dispatchEvent(new Event("portals:clear")); setScene(TutorialScene); };

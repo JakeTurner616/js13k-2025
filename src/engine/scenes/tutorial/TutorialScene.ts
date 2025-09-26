@@ -208,6 +208,8 @@ export const TutorialScene = {
     if (inp.reset && !prevReset) {
       UI.resetAll();
       player?.reset?.();
+      // ALSO clear portals on reset in tutorial
+      (portals as any).reset?.() ?? portals.clear?.();
       jumpReleaseTimer = 0;
     }
     prevReset = !!inp.reset;
@@ -264,6 +266,7 @@ export const TutorialScene = {
                     );
                     try { (zzfx as any)(...(dieSfx as any)); } catch {}
                     player.reset?.();
+                    // NOTE: Do NOT clear portals on spike death anymore.
                     UI.clearPortalHint();
                     break outer;
                   }

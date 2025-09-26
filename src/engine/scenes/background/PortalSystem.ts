@@ -52,7 +52,14 @@ export class PortalSystem {
   // Shot outcome callback (e.g., TutorialScene listens)
   onShot?: (info: ShotInfo) => void;
 
-  constructor() { this.sc.width = PW; this.sc.height = PH; }
+  constructor() {
+    this.sc.width = PW; this.sc.height = PH;
+
+    // 🔔 Global safety nets to guarantee portals clear across scene switches.
+    addEventListener("portals:clear", () => this.clear());
+    addEventListener("scene:start-music", () => this.clear()); // fires on scene start in main.ts
+  }
+
   reset() { this.A = this.B = undefined; this.Q.length = this.cool = 0; this.last = undefined; }
   clear() { this.reset(); }
   setPlayer(p: Player | null) { this.pl = p; }

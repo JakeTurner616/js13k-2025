@@ -6,6 +6,16 @@ import { setScene } from "./SceneManager";
 
 type Mode="menu"|"go";
 
+// 🔒 Eat any pending tap/click/mouse burst for a short window so
+// late-firing events from Menu/GameOver don't leak into the next scene.
+function suppressPointerBurst(ms = 350){
+  const stop = (e: Event) => { e.stopImmediatePropagation(); e.preventDefault(); };
+  const opts = { capture: true, passive: false } as AddEventListenerOptions;
+  const types = ["pointerdown","pointerup","mousedown","mouseup","click","touchstart","touchend"] as const;
+  types.forEach(t => addEventListener(t, stop as any, opts));
+  setTimeout(() => types.forEach(t => removeEventListener(t, stop as any, opts)), ms);
+}
+
 function makeTitleScene(mode:Mode){
   const isMenu=mode==="menu";
   return {
@@ -23,11 +33,19 @@ function makeTitleScene(mode:Mode){
       this._env.start(); this._t0=0; this._bg0=this._bg1=0;
       const c=this.__ctx; if(c) c.imageSmoothingEnabled=false;
       if(isMenu){
-        addEventListener("click",()=>this.onClick?.(),{once:true});
+        addEventListener("click",()=>{
+          suppressPointerBurst();
+          // Clear any lingering portals just in case
+          dispatchEvent(new Event("portals:clear"));
+          this.onClick?.();
+        },{once:true});
       }else{
-        addEventListener("click",()=>{ 
-          dispatchEvent(new Event("scene:stop-music")); 
-          setScene(MenuScene); 
+        addEventListener("click",()=>{
+          suppressPointerBurst();
+          // Stop music and return to menu with a clean slate
+          dispatchEvent(new Event("scene:stop-music"));
+          dispatchEvent(new Event("portals:clear"));
+          setScene(MenuScene);
         },{once:true});
       }
     },
