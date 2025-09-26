@@ -4,9 +4,9 @@
 // the state-based portal banner, and near-player jump/aim/release hints.
 // Now with screen-clamped toasts/hints so boxes don't spill off-canvas,
 // and color-coded M1/M2 in the top-of-screen prompt.
-//
-// No help/skip feature.
-//
+// NOTE: The near-player jump menu is SUPPRESSED until BOTH portals are placed,
+// and now includes a 4th, state-aware line suggesting where to aim the jump
+// (nearest BLUE/ORANGE portal, or END GOAL above checkpoint height).
 
 import { drawText as D } from "../../font/fontEngine";
 import { getCurrentMap } from "../../renderer/level-loader";
@@ -32,7 +32,7 @@ let portalHintState: PortalHintState = PortalHintState.Off;
 // World-space toasts & pings
 // ————————————————————————————————————————————————————————————————————————
 
-type Token = { text: string; color: string };
+export type Token = { text: string; color: string };
 type WToast = { wx: number; wy: number; t: number; dur: number; text?: string; tokens?: Token[] };
 let wtoasts: WToast[] = [];
 
@@ -70,7 +70,7 @@ function getTileId(tx: number, ty: number) {
 }
 
 function visibleTileBounds(cam:{x:number;y:number}) {
-  const mp = getCurrentMap(); if (!mp || !ctx) return { x0:0,x1:-1,y0:0,y1:-1 };
+  const mp = getCurrentMap(); if (!mp || !ctx) return { x0:0,x1:-1,y0:0, y1:-1 };
   const w = ctx.canvas.width, h = ctx.canvas.height;
   const x0w = cam.x - w*0.5, y0w = cam.y - h*0.5;
   const x1w = cam.x + w*0.5, y1w = cam.y + h*0.5;
@@ -100,9 +100,7 @@ function measureTokens(tokens: Token[]) {
 }
 
 // ————————————————————————————————————————————————————————————————————————
-// Screen-space clamping helpers (for world-drawn labels/hints)
-// Assumes the world->screen transform is a simple translate (which our scene uses).
-// If you later add scaling/rotation, update these to use the full matrix inverse.
+// Screen-space clamping helpers
 // ————————————————————————————————————————————————————————————————————————
 
 function getScreenFromWorld(wx: number, wy: number) {
@@ -133,8 +131,6 @@ function nudgeWorldForRect(
   if (rectTop < 0)       dy = -rectTop;
   else if (bottom > h)   dy = h - bottom;
 
-  // Our transform is translation-only, so world nudge equals screen nudge.
-  // If scaling is added later, divide by scale here.
   return { wx: wx + dx, wy: wy + dy };
 }
 
@@ -146,18 +142,15 @@ function drawWorldLabelTokens(c:CanvasRenderingContext2D, wx:number, wy:number, 
   const tw = measureTokens(tokens);
   const pad = 3;
   const boxW = tw + pad * 2;
-  const boxH = 12; // fixed height for token strip
+  const boxH = 12;
 
-  // Compute would-be screen rect
   const { sx, sy } = getScreenFromWorld(wx, wy);
   const rectLeft = (sx - (tw / 2)) - pad;
   const rectTop  = (sy - 12) - pad;
 
-  // Nudge in world to keep on-screen
   const nudged = nudgeWorldForRect(wx, wy, rectLeft, rectTop, boxW, boxH);
   wx = nudged.wx; wy = nudged.wy;
 
-  // Recompute top-left (world) after nudge
   const x0 = (wx - (tw/2))|0, y0 = (wy - 12)|0;
 
   c.save();
@@ -166,7 +159,7 @@ function drawWorldLabelTokens(c:CanvasRenderingContext2D, wx:number, wy:number, 
   let x = x0;
   for (const tk of tokens) {
     D(c, tk.text, x+1, y0+1, 1, "#000");
-    D(c, tk.text, x,   y0,    1, tk.color);
+    D(c, tk.text, x,   y0,   1, tk.color);
     x += tk.text.length * 6;
   }
   c.restore();
@@ -196,12 +189,12 @@ function drawTileCorners(
   c: CanvasRenderingContext2D,
   tx: number, ty: number,
   col = "#7aa2ff",
-  t = 0,
+  timeSec = 0,
   fade = 1
 ) {
   const { x, y } = tileToWorld(tx, ty);
   const m = 1.5, L = 5.5;
-  const pulse = 0.55 + 0.35 * Math.sin(t * 4);
+  const pulse = 0.55 + 0.35 * Math.sin(timeSec * 4);
   c.save();
   c.globalAlpha = pulse * Math.max(0, Math.min(1, fade));
   c.strokeStyle = col;
@@ -361,7 +354,7 @@ export function drawWorld(c:CanvasRenderingContext2D, timeSec:number, cam:{x:num
     c.restore();
   }
 
-  // Toasts (with screen-space clamping via draw helpers)
+  // Toasts (with clamping)
   for (const wt of wtoasts) {
     const fadeIn  = Math.min(1, wt.t/0.15);
     const fadeOut = Math.min(1, (wt.dur - wt.t)/0.25);
@@ -377,14 +370,14 @@ export function drawWorld(c:CanvasRenderingContext2D, timeSec:number, cam:{x:num
 }
 
 // ————————————————————————————————————————————————————————————————————————
-// HUD drawing (accepts either a string or color tokens)
+// HUD drawing
 // ————————————————————————————————————————————————————————————————————————
 export function drawHud(
   c: CanvasRenderingContext2D,
   timeSec: number,
   tutorial: string | Token[]
 ) {
-  const w = c.canvas.width, h = c.canvas.height;
+  const w = c.canvas.width;
 
   // Compute width & draw box
   let tw = 0;
@@ -416,12 +409,24 @@ export function drawHud(
     }
   }
 
-  // State-based “Portals only stick to BLACK…” banner (no manual help key)
-  if (portalHintState === PortalHintState.NeedsPortal) {
+  // State-based banner
+  // ⛔ Hide this banner as soon as AT LEAST ONE portal exists.
+  // We infer portal presence from the tokens passed in:
+  //  - "shoot the other portal" ⇒ at least one exists
+  //  - "Both portals placed"    ⇒ both exist
+  //  - otherwise we assume none are placed yet
+  let nonePlaced = true;
+  if (Array.isArray(tutorial)) {
+    const concat = tutorial.map(t => t.text).join("");
+    if (concat.includes("shoot the other portal") || concat.includes("Both portals placed")) {
+      nonePlaced = false;
+    }
+  }
+  if (portalHintState === PortalHintState.NeedsPortal && nonePlaced) {
     const hint = "ADJUST AIM WITH MOUSE CURSOR, THEN SHOOT WITH MOUSE 1/2.";
     const padX2 = 6, padY2 = 6;
     const tw2 = hint.length * 6 - 1;
-    const hy = (h * 0.70) | 0;
+    const hy = (c.canvas.height * 0.70) | 0;
     const x2 = ((w - tw2) / 2) | 0;
 
     c.save();
@@ -436,24 +441,25 @@ export function drawHud(
 }
 
 // ————————————————————————————————————————————————————————————————————————
-// Top-of-screen prompt builders
+// Top-of-screen prompt builders (now state-aware)
 // ————————————————————————————————————————————————————————————————————————
 
-// Back-compat: plain string (will render without colors if passed to drawHud)
+export type TokenBuilder = Token[];
 
-
-// Preferred: color-coded tokens for M1/M2
+// Back-compat
 export function promptForStepTokens(): Token[] {
-  return [
-    { text: "Aim with mouse cursor, shoot portals with ", color: "#e5e7eb" },
-    { text: "M1", color: "#28f" },
-    { text: " or ", color: "#e5e7eb" },
-    { text: "M2", color: "#f80" },
-    { text: ".", color: "#e5e7eb" },
-  ];
+  return tokensBoth();
 }
 
-// Convenience builders for common token sets the scene might want
+// 🆕 Smart prompt that changes M1/M2 depending on which portal exists.
+export function promptForStepTokensSmart(hasA: boolean, hasB: boolean): Token[] {
+  if (hasA && !hasB) return tokensNeedB(); // tell user to press M2
+  if (hasB && !hasA) return tokensNeedA(); // tell user to press M1
+  if (!hasA && !hasB) return tokensBoth(); // either M1 or M2
+  return tokensBothPlaced();               // both exist: neutral tip
+}
+
+// Convenience token sets
 export function tokensGreyGuidance(): Token[] {
   return [
     { text: "Use ", color: "#e5e7eb" },
@@ -491,6 +497,42 @@ export function tokensAvoidSpikes(): Token[] {
   ];
 }
 
+// 🆕 tokens for pointer tooltips / HUD depending on remaining key
+export function tokensForRemainingKey(which: "A" | "B" | "ANY"): Token[] {
+  if (which === "A") return tokensNeedA();
+  if (which === "B") return tokensNeedB();
+  return tokensBoth();
+}
+
+function tokensBoth(): Token[] {
+  return [
+    { text: "Aim with mouse cursor, shoot portals with ", color: "#e5e7eb" },
+    { text: "M1", color: "#28f" },
+    { text: " or ", color: "#e5e7eb" },
+    { text: "M2", color: "#f80" },
+    { text: ".", color: "#e5e7eb" },
+  ];
+}
+function tokensNeedA(): Token[] {
+  return [
+    { text: "Aim with mouse cursor, shoot the other portal with ", color: "#e5e7eb" },
+    { text: "M1", color: "#28f" },
+    { text: ".", color: "#e5e7eb" },
+  ];
+}
+function tokensNeedB(): Token[] {
+  return [
+    { text: "Aim with mouse cursor, shoot the other portal with ", color: "#e5e7eb" },
+    { text: "M2", color: "#f80" },
+    { text: ".", color: "#e5e7eb" },
+  ];
+}
+function tokensBothPlaced(): Token[] {
+  return [
+    { text: "Both portals placed - Use them to traverse!", color: "#e5e7eb" },
+  ];
+}
+
 // ————————————————————————————————————————————————————————————————————————
 // NEW: Near-player contextual hints for jump/aim/release (with clamping)
 // ————————————————————————————————————————————————————————————————————————
@@ -498,61 +540,95 @@ export function tokensAvoidSpikes(): Token[] {
 export type JumpHintState = {
   grounded: boolean;
   jumpHeld: boolean;
-  recentlyReleased: boolean; // true for a short window after releasing jump
+  recentlyReleased: boolean;
   aimLeft: boolean;
   aimRight: boolean;
-  powerDown: boolean; // S/Down
+  powerDown: boolean;
+  // Gate this whole menu until both portals exist
+  bothPortalsPlaced?: boolean;
+  // 🆕 State-aware suggestion for the 4th line:
+  // "A" → aim toward BLUE portal, "B" → ORANGE portal, "GOAL" → end goal
+  suggestTo?: "A" | "B" | "GOAL" | null;
 };
 
-/**
- * Draws lightweight step-by-step hints near the player.
- * Call from inside world transform. (wx, wy) should be near player head.
- */
-// Add near other module-level state in src/engine/scenes/tutorial/TutorialUI.ts
 let groundedSinceMs = -1;
 
-// Replace drawPlayerHints with this version
 export function drawPlayerHints(
   c: CanvasRenderingContext2D,
   wx: number,
   wy: number,
   s: JumpHintState
 ) {
-  // Block hints right after a jump release
+  // ⛔ Do not show ANY of the near-player jump menu until both portals exist
+  if (!s.bothPortalsPlaced) {
+    groundedSinceMs = -1;
+    return;
+  }
+
   if (s.recentlyReleased) {
     groundedSinceMs = -1;
     return;
   }
 
-  // Track how long we've been grounded
   const now = (typeof performance !== "undefined" ? performance.now() : Date.now());
   if (!s.grounded) {
     groundedSinceMs = -1;
-    return; // must be grounded to show
+    return;
   }
   if (groundedSinceMs < 0) groundedSinceMs = now;
-
-  // Require at least 0.5s grounded before showing the jump menu
   if (now - groundedSinceMs < 500) return;
 
   const padX = 4, padY = 4, lh = 8;
-  const y = wy + 24; // place BELOW the player
+  const y = wy + 24;
 
-  const lines = s.jumpHeld
-    ? [
-        "• Aim A/D or ←/→",
-        "• Adjust power S/↓",
-        "• Release to jump",
-      ]
-    : [
-        "• Hold SPACE",
-      ];
+  // Build menu lines and optional per-line tokens (so BLUE/ORANGE can be colorized).
+  // Ensure "Release to jump" is ALWAYS last while charging.
+  let lines: string[] = [];
+  let lineTokens: (Token[] | null)[] = [];
 
-  const tw = Math.max(...lines.map(t => t.length * 6 - 1));
+  if (s.jumpHeld) {
+    lines.push("• Aim A/D or ←/→");
+    lineTokens.push(null);
+
+    lines.push("• Adjust power S/↓");
+    lineTokens.push(null);
+
+    // State-aware suggestion BEFORE the release line
+    if (s.suggestTo === "A") {
+      lines.push("• Aim toward the BLUE portal");
+      lineTokens.push([
+        { text: "• Aim toward the ", color: "#e5e7eb" },
+        { text: "BLUE",              color: "#28f"    },
+        { text: " portal",           color: "#e5e7eb" },
+      ]);
+    } else if (s.suggestTo === "B") {
+      lines.push("• Aim toward the ORANGE portal");
+      lineTokens.push([
+        { text: "• Aim toward the ", color: "#e5e7eb" },
+        { text: "ORANGE",            color: "#f80"    },
+        { text: " portal",           color: "#e5e7eb" },
+      ]);
+    } else if (s.suggestTo === "GOAL") {
+      lines.push("• Aim toward the END GOAL");
+      lineTokens.push(null);
+    }
+
+    // Always finish with release
+    lines.push("• Release to jump");
+    lineTokens.push(null);
+  } else {
+    lines = ["• Hold SPACE"];
+    lineTokens = [null];
+  }
+
+  // Measure width using tokens when present
+  const widths = lines.map((ln, i) =>
+    lineTokens[i] ? measureTokens(lineTokens[i] as Token[]) : (ln.length * 6 - 1)
+  );
+  const tw = Math.max(...widths);
   const boxW = tw + padX * 2;
   const boxH = lines.length * lh + padY * 2;
 
-  // Compute would-be rect in screen, then nudge world position to keep it on-canvas
   const { sx, sy } = getScreenFromWorld(wx, y);
   const rectLeft = (sx - (tw / 2)) - padX;
   const rectTop  = sy - padY;
@@ -560,16 +636,27 @@ export function drawPlayerHints(
   const nudged = nudgeWorldForRect(wx, y, rectLeft, rectTop, boxW, boxH);
   const nx = nudged.wx, ny = nudged.wy;
 
-  // Draw bubble at nudged position
   const x0 = (nx - (tw / 2)) | 0;
   let yy = ny;
 
   c.save();
   c.fillStyle = "#000a";
   c.fillRect(x0 - padX, yy - padY, boxW, boxH);
-  for (const ln of lines) {
-    D(c, ln, x0 + 1, yy + 1, 1, "#000");
-    D(c, ln, x0,     yy,     1, "#e5e7eb");
+
+  // Draw each line; if tokens exist, draw colored segments
+  for (let i = 0; i < lines.length; i++) {
+    const segs = lineTokens[i];
+    if (segs) {
+      let xx = x0;
+      for (const seg of segs) {
+        D(c, seg.text, xx + 1, yy + 1, 1, "#000");
+        D(c, seg.text, xx,     yy,     1, seg.color);
+        xx += seg.text.length * 6;
+      }
+    } else {
+      D(c, lines[i], x0 + 1, yy + 1, 1, "#000");
+      D(c, lines[i], x0,     yy,     1, "#e5e7eb");
+    }
     yy += lh;
   }
   c.restore();

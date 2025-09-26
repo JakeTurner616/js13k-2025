@@ -2,7 +2,25 @@
 //
 // Tutorial scene (core). No help/skip feature.
 // The UI layer (toasts/pings/highlights/banner) lives in tutorial/TutorialUI.ts.
-// CHANGE: Spawn shifted left (SPAWN_SHIFT_X) and NEW near-player jump/aim/release hints.
+// CHANGE: Spawn shifted left (SPAWN_SHIFT_X), near-player jump/aim/release hints,
+// and 🆕 state-aware 8-bit pointers guiding player to place portals on LEFT and RIGHT
+// black tiles. Two pointers show when neither portal exists; a pointer disappears
+// as soon as you land a valid shot near its target. The HUD prompt now adapts to
+// tell you "Use M1" or "Use M2" based on which portal is already placed.
+// UPDATE: Initial pointer toast messages are removed entirely.
+// UPDATE 2: When one pointer gets popped (valid hit near its target), we toast the
+// remaining pointer with a state-based, color-coded message telling the player to
+// use M1 (blue) or M2 (orange), depending on which portal is still missing.
+// UPDATE 3: Move those pointer toast “bubbles” slightly DOWN and keep them on screen
+// a bit longer.
+// UPDATE 4: Also move the ARROW SPRITES themselves down (not just the toast).
+// UPDATE 5: Do NOT show the near-player “Hold SPACE” jump menu until BOTH portals exist.
+// UPDATE 6: Add a 4th, state-aware jump hint line: while charging a jump, suggest
+// aiming toward the NEAREST portal (BLUE/ORANGE). If the player’s Y drops **below**
+// the HIGHEST (topmost) FINISH tile’s Y (remember: canvas Y+ is down, so “below” means
+// numerically larger Y), suggest aiming toward the FINISH LINE instead.
+// UPDATE 7: Relax pointer “bubble” hitboxes (much larger radius) and offset the
+// EAST-facing (right) arrow slightly lower than the WEST-facing (left) arrow.
 
 import { drawMapAndColliders } from "../../renderer/render";
 import { loadLevel as L, getCurrentMap } from "../../renderer/level-loader";
@@ -23,6 +41,8 @@ import { zzfx } from "../../audio/SoundEngine";
 import { die as dieSfx } from "../../../sfx/die";
 
 import * as UI from "./../tutorial/TutorialUI";
+// 8-bit pointer system
+import * as P8 from "../../ui/Pointer8";
 
 // ───────────────────────────────────────────────────────────────────────────────
 // CONFIG / CONSTANTS
@@ -53,6 +73,19 @@ const NEXT_LEVEL_INDEX = 1; // BackgroundScene expects lvl.n 1-based; we use 0-b
 // BackgroundScene-compatible win sequence timing (ticks, ~60fps)
 const WIN_TICKS = 66;
 
+// Pointer visuals
+const PTR_GREY = "#9aa0a6";
+
+// 🆕 Pointer tuning
+const POINTER_Y_OFFSET_W       = 10; // ↓ WEST-facing arrow sprite down a bit
+const POINTER_Y_OFFSET_E       = 16; // ↓ EAST-facing arrow slightly more than WEST
+const POINTER_TOAST_Y_OFFSET   = 10; // ↓ move the toast “bubble” down (world space)
+const POINTER_TOAST_DUR        = 3.2; // keep toast a bit longer
+
+// 🆕 Relaxed pointer "bubble" hitbox radius (used for both pop + near checks)
+const PTR_HIT_R  = TILE * 1.75;
+const PTR_HIT_R2 = PTR_HIT_R * PTR_HIT_R;
+
 // —─────────────────────────────────────────────────────────────────────────────
 // STATE
 // —─────────────────────────────────────────────────────────────────────────────
@@ -71,6 +104,18 @@ let prevReset = false;
 // NEW: track jump hint timing
 let prevJumpHeld = false;
 let jumpReleaseTimer = 0; // seconds remaining to suppress hints after release
+
+// target positions (world) for left/right “black” placements
+let leftTarget:  { wx: number; wy: number } | null = null;
+let rightTarget: { wx: number; wy: number } | null = null;
+
+// END GOAL (FINISH) centers and topmost Y (world)
+let finishTarget: { wx: number; wy: number } | null = null;
+let finishTopY: number | null = null; // smallest (highest onscreen) FINISH center Y
+
+// pointer ids so we can replace/remove cleanly
+let leftPtrId: string | null = null;
+let rightPtrId: string | null = null;
 
 // ───────────────────────────────────────────────────────────────────────────────
 // HELPERS
@@ -99,6 +144,174 @@ function zeroBodyMotion(b: any){
   if ("impulseY" in b) b.impulseY = 0;
 }
 
+function isBlackTileId(id:number){
+  return id > 0 && id !== GREY_TILE_ID && id !== FINISH_ID && id !== SPIKE_ID;
+}
+
+// Scan the current map to determine LEFTMOST and RIGHTMOST black tile anchors,
+// record a FINISH center, and compute the HIGHEST (topmost) FINISH Y.
+function computeTargets() {
+  if (!ctx) return;
+  const mp = getCurrentMap(); if (!mp) { leftTarget = rightTarget = finishTarget = null; finishTopY = null; return; }
+  const Y0 = ctx.canvas.height - mp.height * TILE;
+
+  // Leftmost black
+  let lFound: { tx:number; ty:number } | null = null;
+  for (let tx = 0; tx < mp.width && !lFound; tx++) {
+    for (let ty = 0; ty < mp.height; ty++) {
+      const id = (mp.tiles as any)[ty * mp.width + tx] | 0;
+      if (isBlackTileId(id)) { lFound = { tx, ty }; break; }
+    }
+  }
+
+  // Rightmost black
+  let rFound: { tx:number; ty:number } | null = null;
+  for (let tx = mp.width - 1; tx >= 0 && !rFound; tx--) {
+    for (let ty = 0; ty < mp.height; ty++) {
+      const id = (mp.tiles as any)[ty * mp.width + tx] | 0;
+      if (isBlackTileId(id)) { rFound = { tx, ty }; break; }
+    }
+  }
+
+  // FINISH scan → first center + topmost Y
+  let fFirst: { tx:number; ty:number } | null = null;
+  let minWy: number | null = null;
+  for (let ty = 0; ty < mp.height; ty++) {
+    for (let tx = 0; tx < mp.width; tx++) {
+      if (((mp.tiles as any)[ty * mp.width + tx] | 0) === FINISH_ID) {
+        const wx = tx * TILE + (TILE >> 1);
+        const wy = Y0 + ty * TILE + (TILE >> 1);
+        if (!fFirst) fFirst = { tx, ty };
+        if (minWy == null || wy < minWy) minWy = wy; // topmost (smallest Y)
+      }
+    }
+  }
+
+  leftTarget   = lFound  ? { wx: lFound.tx  * TILE + (TILE >> 1), wy: Y0 + lFound.ty * TILE + (TILE >> 1) } : null;
+  rightTarget  = rFound  ? { wx: rFound.tx  * TILE + (TILE >> 1), wy: Y0 + rFound.ty * TILE + (TILE >> 1) } : null;
+  finishTarget = fFirst  ? { wx: fFirst.tx  * TILE + (TILE >> 1), wy: Y0 + fFirst.ty * TILE + (TILE >> 1) } : null;
+  finishTopY   = minWy;
+}
+
+function d2(ax:number, ay:number, bx:number, by:number){ const dx=ax-bx, dy=ay-by; return dx*dx+dy*dy; }
+
+function portalPlacedNear(target: { wx:number; wy:number } | null): boolean {
+  if (!target) return false;
+  const A = (portals as any).A as { x:number; y:number } | undefined;
+  const B = (portals as any).B as { x:number; y:number } | undefined;
+  if (A && d2(A.x, A.y, target.wx, target.wy) <= PTR_HIT_R2) return true;
+  if (B && d2(B.x, B.y, target.wx, target.wy) <= PTR_HIT_R2) return true;
+  return false;
+}
+
+// two-at-once pointer logic:
+// - If neither side has a portal: show BOTH pointers.
+// - If one side has a portal: show ONLY the missing side.
+// - If both have portals: show NONE.
+function refreshPointers() {
+  if (!ctx) return;
+
+  // remove stale if targets missing
+  if (!leftTarget && leftPtrId)  { P8.removePointer(leftPtrId);  leftPtrId = null; }
+  if (!rightTarget && rightPtrId){ P8.removePointer(rightPtrId); rightPtrId = null; }
+
+  const haveLeft  = portalPlacedNear(leftTarget);
+  const haveRight = portalPlacedNear(rightTarget);
+
+  const wantLeft  = !haveLeft;
+  const wantRight = !haveRight;
+
+  // LEFT (W)
+  if (wantLeft && leftTarget) {
+    if (!leftPtrId) {
+      const wx = leftTarget.wx + 14;
+      const wy = leftTarget.wy + POINTER_Y_OFFSET_W; // WEST: smaller drop
+      // Initial toast messages removed: do not pass withToastTokens/withToastText.
+      leftPtrId = P8.addPointer({ wx, wy, dir: "W", color: PTR_GREY });
+    }
+  } else if (leftPtrId) {
+    P8.removePointer(leftPtrId); leftPtrId = null;
+  }
+
+  // RIGHT (E)
+  if (wantRight && rightTarget) {
+    if (!rightPtrId) {
+      const wx = rightTarget.wx - 14;
+      const wy = rightTarget.wy + POINTER_Y_OFFSET_E; // EAST: a bit lower
+      // Initial toast messages removed.
+      rightPtrId = P8.addPointer({ wx, wy, dir: "E", color: PTR_GREY });
+    }
+  } else if (rightPtrId) {
+    P8.removePointer(rightPtrId); rightPtrId = null;
+  }
+}
+
+// Remove the pointer whose target this impact is closest to (used on valid sticks)
+// Returns which side got popped: "left" | "right" | null
+function hidePointerForImpact(px: number, py: number): "left" | "right" | null {
+  let popped: "left" | "right" | null = null;
+  if (leftTarget && leftPtrId) {
+    if (d2(px, py, leftTarget.wx, leftTarget.wy) <= PTR_HIT_R2) {
+      P8.removePointer(leftPtrId); leftPtrId = null;
+      popped = "left";
+    }
+  }
+  if (rightTarget && rightPtrId) {
+    if (d2(px, py, rightTarget.wx, rightTarget.wy) <= PTR_HIT_R2) {
+      P8.removePointer(rightPtrId); rightPtrId = null;
+      popped = "right";
+    }
+  }
+  return popped;
+}
+
+// When one pointer is popped, toast the remaining pointer telling which key to use.
+// whichKey: "A" => tell to use M1 (blue); "B" => tell to use M2 (orange)
+function toastRemainingPointer(whichKey: "A" | "B") {
+  // If both pointers are gone, nothing to toast.
+  // If exactly one remains, toast at that target's position, shifted DOWN a bit.
+  if (leftPtrId && leftTarget) {
+    UI.pushWorldToastTokens(
+      UI.tokensForRemainingKey(whichKey),
+      leftTarget.wx,
+      leftTarget.wy + POINTER_TOAST_Y_OFFSET,
+      POINTER_TOAST_DUR
+    );
+  } else if (rightPtrId && rightTarget) {
+    UI.pushWorldToastTokens(
+      UI.tokensForRemainingKey(whichKey),
+      rightTarget.wx,
+      rightTarget.wy + POINTER_TOAST_Y_OFFSET,
+      POINTER_TOAST_DUR
+    );
+  }
+}
+
+// Compute the suggestion target for the 4th jump hint line.
+// Returns "A" | "B" | "GOAL" | null.
+//
+// Rule:
+//   • If player's top Y is *below* the topmost FINISH Y (i.e., playerYTop > finishTopY),
+//     suggest "GOAL" (finish line).
+//   • Else, suggest the NEAREST placed portal (A=blue / B=orange).
+function computeJumpSuggestTarget(playerX: number, playerYTop: number): "A" | "B" | "GOAL" | null {
+  const A = (portals as any).A as { x:number; y:number } | undefined;
+  const B = (portals as any).B as { x:number; y:number } | undefined;
+  const both = !!A && !!B;
+  if (!both) return null;
+
+  if (finishTopY != null && playerYTop > finishTopY) {
+    // Y grows downward; “below topmost finish” → larger Y → suggest goal
+    return "GOAL";
+  }
+
+  // Otherwise suggest nearest portal
+  const dA = A ? d2(playerX, playerYTop, A.x, A.y) : Number.POSITIVE_INFINITY;
+  const dB = B ? d2(playerX, playerYTop, B.x, B.y) : Number.POSITIVE_INFINITY;
+  if (!isFinite(dA) && !isFinite(dB)) return null;
+  return dA <= dB ? "A" : "B";
+}
+
 // ───────────────────────────────────────────────────────────────────────────────
 // LIFECYCLE
 // ───────────────────────────────────────────────────────────────────────────────
@@ -118,6 +331,7 @@ export const TutorialScene = {
 
     // Prepare UI state
     UI.resetAll();
+    P8.clear(); // pointers fresh each start
     jumpReleaseTimer = 0;
     prevJumpHeld = false;
 
@@ -144,12 +358,16 @@ export const TutorialScene = {
       // BG follower seed
       const target = player ? player.body.pos.x : 0;
       bgX = bgXPrev = target;
+
+      // compute targets and seed pointers / finish info
+      computeTargets();
+      refreshPointers();
     });
 
     // Input → portal system
     portals.attachInput(ctx.canvas, cam);
 
-    // Raycast outcome → UI feedback (no help key, purely state-driven)
+    // Raycast outcome → UI feedback + pointer updates
     (portals as any).onShot = (ev: any) => {
       const px = (ev.impactX ?? ev.ax) | 0;
       const py = (ev.impactY ?? ev.ay) | 0;
@@ -157,6 +375,14 @@ export const TutorialScene = {
       if (ev.hitBlack) {
         UI.clearPortalHint();
         UI.pushPing(px, py, "#7aa2ff", 0.45);
+
+        // Hide the arrow associated to the impacted side immediately,
+        // then toast the remaining pointer with the correct key to use.
+        const popped = hidePointerForImpact(px, py);
+        if (popped) {
+          const remainingKey: "A" | "B" = (ev.k === "A") ? "B" : "A";
+          toastRemainingPointer(remainingKey);
+        }
       } else {
         UI.requirePortalHint();
         UI.pushPing(px, py, "#ff4d4d", 0.55);
@@ -174,13 +400,20 @@ export const TutorialScene = {
           UI.pushWorldToastTokens(UI.tokensGenericMiss(), px, py - 4, 2.2);
         }
       }
+
+      // After each shot, update state in case a portal just landed
+      refreshPointers();
     };
 
-    // Resize → recompute bounds
+    // Resize → recompute bounds and targets
     addEventListener("resize", () => {
       if (!ctx || !player) return;
       const mp = getCurrentMap();
-      if (mp) player.setLevelBounds(mp.width, mp.height, ctx.canvas.height, TILE);
+      if (mp) {
+        player.setLevelBounds(mp.width, mp.height, ctx.canvas.height, TILE);
+        computeTargets();
+        refreshPointers();
+      }
     });
   },
 
@@ -191,34 +424,35 @@ export const TutorialScene = {
   update() {
     if (!ctx) return;
 
-    // Read input first (match BackgroundScene flow for reset responsiveness)
     const inp = getInputState();
 
-    // Win sequence countdown (no early return; camera/bg keep updating)
+    // Win countdown
     const inWin = winT > 0;
     if (inWin) {
       if (--winT === 0) {
-        // Queue the exact next level for BackgroundScene and switch immediately.
         try { setPendingStartLevelZeroBased(NEXT_LEVEL_INDEX); } catch {}
         setScene(BackgroundScene);
       }
     }
 
-    // RESET (always responsive)
+    // RESET
     if (inp.reset && !prevReset) {
       UI.resetAll();
+      P8.clear();
       player?.reset?.();
-      // ALSO clear portals on reset in tutorial
       (portals as any).reset?.() ?? portals.clear?.();
       jumpReleaseTimer = 0;
+
+      computeTargets();
+      refreshPointers();
     }
     prevReset = !!inp.reset;
 
     if (!inWin) {
-      // Track jump edge for hint suppression
+      // Jump hint suppression window
       const jumpHeld = !!(inp.jump);
       if (prevJumpHeld && !jumpHeld) {
-        jumpReleaseTimer = 0.4; // seconds
+        jumpReleaseTimer = 0.4;
       }
       prevJumpHeld = jumpHeld;
       if (jumpReleaseTimer > 0) jumpReleaseTimer -= 1/60;
@@ -226,6 +460,9 @@ export const TutorialScene = {
       // Sim
       player?.update(inp, ctx);
       portals.tick();
+
+      // Keep pointer state in sync with actually placed portals
+      refreshPointers();
 
       // Spike/finish checks (+ SFX on spike)
       if (player && ctx) {
@@ -266,8 +503,8 @@ export const TutorialScene = {
                     );
                     try { (zzfx as any)(...(dieSfx as any)); } catch {}
                     player.reset?.();
-                    // NOTE: Do NOT clear portals on spike death anymore.
                     UI.clearPortalHint();
+                    refreshPointers();
                     break outer;
                   }
                 }
@@ -281,7 +518,7 @@ export const TutorialScene = {
             dispatchEvent(new CustomEvent("scene:stop-music"));
             try { playWinTune(); } catch {}
 
-            // Freeze player motion and stabilize position before the win countdown.
+            // Freeze player motion, start win countdown
             if (player) {
               const pb: any = player.body;
               zeroBodyMotion(pb);
@@ -295,8 +532,9 @@ export const TutorialScene = {
             player?.celebrateWin?.(WIN_TICKS);
             winT = WIN_TICKS;
             (portals as any).reset?.() ?? portals.clear?.();
+            P8.clear();
 
-            // Seed BG follower to current player X
+            // Seed BG follower
             if (player) {
               const target = player.body.pos.x;
               bgX = bgXPrev = target;
@@ -306,10 +544,10 @@ export const TutorialScene = {
       }
     } // end !inWin
 
-    // Tick UI at a stable small dt
+    // UI/pointers/camera/bg
     UI.tick(1 / 50);
+    P8.tick(1 / 60);
 
-    // Camera (always)
     const mp = getCurrentMap();
     const ww = mp ? mp.width * TILE : 1e4;
     const wh = mp ? mp.height * TILE : 1e4;
@@ -320,7 +558,6 @@ export const TutorialScene = {
       cam, px, py, ctx.canvas.width, ctx.canvas.height * 0.7, ww, wh, CAM_EASE, CAM_DT, true
     );
 
-    // BG follow (always)
     bgXPrev = bgX;
     bgX += (px - bgX) * BG_EASE;
   },
@@ -340,7 +577,7 @@ export const TutorialScene = {
     if (mp) {
       drawMapAndColliders(c, mp, TILE);
 
-      // FINISH visual checkerboard
+      // FINISH checkerboard
       const Y0 = c.canvas.height - mp.height*TILE;
       for (let ty=0; ty<mp.height; ty++) {
         const row = ty*mp.width, y = (Y0 + ty*TILE)|0;
@@ -351,17 +588,24 @@ export const TutorialScene = {
         }
       }
 
-      // UI overlays
+      // WORLD overlays
       UI.drawWorld(c, t, cam);
+      P8.drawWorld(c, t);
 
-      // Near-player hints
+      // Near-player hints (only AFTER both portals are placed)
       if (player) {
         const b = player.body;
         const H = getHB(b);
-        const wx = (b.pos.x + H.x + (H.w >> 1)) | 0;
-        const wy = (b.pos.y + H.y) | 0;
+        const wx = (b.pos.x + H.x + (H.w >> 1)) | 0; // player center X
+        const wy = (b.pos.y + H.y) | 0;              // player top Y
 
         const inp = getInputState();
+        const hasA = !!(portals as any).A;
+        const hasB = !!(portals as any).B;
+
+        // Compute the state-aware 4th suggestion target (A/B/GOAL)
+        const suggestTo = (hasA && hasB) ? computeJumpSuggestTarget(wx, wy) : null;
+
         UI.drawPlayerHints(c, wx, wy,
           {
             grounded: !!b.grounded,
@@ -370,7 +614,11 @@ export const TutorialScene = {
             aimLeft: !!inp.left,
             aimRight: !!inp.right,
             powerDown: !!inp.down,
-          }
+            // Gate the “Hold SPACE / Release to jump” menu until both portals exist
+            bothPortalsPlaced: hasA && hasB,
+            // 🆕 pass the preferred target for the 4th line
+            suggestTo,
+          } as any // (cast to any if TutorialUI.ts type is not yet updated)
         );
       }
     }
@@ -379,7 +627,9 @@ export const TutorialScene = {
     portals.draw(c, tMs);
     c.restore();
 
-    // HUD
-    UI.drawHud(c, t, UI.promptForStepTokens());
+    // HUD prompt adapts to which portal exists
+    const hasA = !!(portals as any).A;
+    const hasB = !!(portals as any).B;
+    UI.drawHud(c, t, UI.promptForStepTokensSmart(hasA, hasB));
   }
 };
