@@ -21,6 +21,8 @@
 // numerically larger Y), suggest aiming toward the FINISH LINE instead.
 // UPDATE 7: Relax pointer “bubble” hitboxes (much larger radius) and offset the
 // EAST-facing (right) arrow slightly lower than the WEST-facing (left) arrow.
+// UPDATE 8: On reaching the end goal, show a near-player “Good job :)” world toast
+//           in roughly the same place as the jump menu, and suppress HUD prompts.
 
 import { drawMapAndColliders } from "../../renderer/render";
 import { loadLevel as L, getCurrentMap } from "../../renderer/level-loader";
@@ -288,12 +290,6 @@ function toastRemainingPointer(whichKey: "A" | "B") {
 }
 
 // Compute the suggestion target for the 4th jump hint line.
-// Returns "A" | "B" | "GOAL" | null.
-//
-// Rule:
-//   • If player's top Y is *below* the topmost FINISH Y (i.e., playerYTop > finishTopY),
-//     suggest "GOAL" (finish line).
-//   • Else, suggest the NEAREST placed portal (A=blue / B=orange).
 function computeJumpSuggestTarget(playerX: number, playerYTop: number): "A" | "B" | "GOAL" | null {
   const A = (portals as any).A as { x:number; y:number } | undefined;
   const B = (portals as any).B as { x:number; y:number } | undefined;
@@ -518,16 +514,19 @@ export const TutorialScene = {
             dispatchEvent(new CustomEvent("scene:stop-music"));
             try { playWinTune(); } catch {}
 
+            // Near-player celebratory toast in the same spot as the jump menu
+            const centerX = (player.body.pos.x + H.x + (H.w >> 1)) | 0;
+            const topY    = (player.body.pos.y + H.y) | 0;
+            UI.showGoodJobNearPlayer(centerX, topY, 3.0);
+
             // Freeze player motion, start win countdown
-            if (player) {
-              const pb: any = player.body;
-              zeroBodyMotion(pb);
-              if (pb.pos) {
-                pb.pos.x = Math.round(pb.pos.x);
-                pb.pos.y = Math.round(pb.pos.y);
-              }
-              if ("grounded" in pb) pb.grounded = true;
+            const pb: any = player.body;
+            zeroBodyMotion(pb);
+            if (pb.pos) {
+              pb.pos.x = Math.round(pb.pos.x);
+              pb.pos.y = Math.round(pb.pos.y);
             }
+            if ("grounded" in pb) pb.grounded = true;
 
             player?.celebrateWin?.(WIN_TICKS);
             winT = WIN_TICKS;
@@ -535,10 +534,8 @@ export const TutorialScene = {
             P8.clear();
 
             // Seed BG follower
-            if (player) {
-              const target = player.body.pos.x;
-              bgX = bgXPrev = target;
-            }
+            const target = player.body.pos.x;
+            bgX = bgXPrev = target;
           }
         }
       }
@@ -618,7 +615,7 @@ export const TutorialScene = {
             bothPortalsPlaced: hasA && hasB,
             // 🆕 pass the preferred target for the 4th line
             suggestTo,
-          } as any // (cast to any if TutorialUI.ts type is not yet updated)
+          } as any
         );
       }
     }
@@ -627,7 +624,7 @@ export const TutorialScene = {
     portals.draw(c, tMs);
     c.restore();
 
-    // HUD prompt adapts to which portal exists
+    // HUD prompt adapts to which portal exists, but UI will suppress it during win toast.
     const hasA = !!(portals as any).A;
     const hasB = !!(portals as any).B;
     UI.drawHud(c, t, UI.promptForStepTokensSmart(hasA, hasB));

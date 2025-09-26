@@ -18,6 +18,10 @@ import { die as dieSfx } from "../../sfx/die";
 const TILE=16, FINISH=3, SPIKE=4;
 const CAM_EASE=.14, CAM_DT=1/60, BG_EASE=.18;
 
+// 🆕 simple, local toast (no TutorialUI dependency)
+const INTRO_TOAST_DUR = 3.6;
+let introToastT = 0;
+
 let LIDX=0, ctx:CanvasRenderingContext2D|null=null;
 let env=new Environment(), portals=new PortalSystem(), player:Player|null=null;
 let cam:Cam={x:0,y:0}, bgX=0, bgXPrev=0, winT=0, toGameOver=false;
@@ -55,7 +59,8 @@ export const BackgroundScene={
     const k=ctx.canvas; cam.x=k.width*.5; cam.y=k.height*.5;
 
     // Consume any pending start index immediately (prevents one-frame flicker).
-    LIDX = (PENDING_START_LIDX!=null) ? PENDING_START_LIDX : 0;
+    const cameFromTutorial = (PENDING_START_LIDX!=null);
+    LIDX = cameFromTutorial ? (PENDING_START_LIDX as number) : 0;
     PENDING_START_LIDX = null;
 
     env.start();
@@ -73,6 +78,11 @@ export const BackgroundScene={
       portals.setAnimator(a); portals.setPlayer(player);
       const mp=getCurrentMap(); if(mp&&ctx) player.setLevelBounds(mp.width,mp.height,ctx.canvas.height,TILE);
       const target=player?player.body.pos.x:0; bgX=bgXPrev=target;
+
+      // 🆕 Show a one-shot, super simple toast if we just came from Tutorial
+      if(cameFromTutorial){
+        introToastT = INTRO_TOAST_DUR;
+      }
     });
 
     addEventListener("resize",()=>{ if(!ctx||!player) return; const mp=getCurrentMap(); if(mp) player.setLevelBounds(mp.width,mp.height,ctx.canvas.height,TILE); });
@@ -141,6 +151,9 @@ export const BackgroundScene={
 
     // bg follow x
     const px=player?player.body.pos.x:cam.x; bgXPrev=bgX; bgX+=(px-bgX)*BG_EASE;
+
+    // 🆕 fade out our simple toast
+    if(introToastT>0) introToastT = Math.max(0, introToastT - 1/60);
   },
 
   draw(t:number, a:number){
@@ -169,9 +182,30 @@ export const BackgroundScene={
 
     // HUD (top-right): "DEATHS <n>  TIME MM:SS"
     const sec=(G.T/1e3|0), mm=(sec/60|0), ss=(sec%60|0);
-    const text="DEATHS "+(G.D|0)+"  TIME "+mm+":"+(ss<10?"0":"")+ss;
-    const tw=text.length*6 - 1, x=(w - tw - 6)|0, y=4; // scale=1
-    c.fillStyle="#0007"; c.fillRect(x-3,y-2,tw+6,11);
-    D(c,text,x+1,y+1,1,"#000"); D(c,text,x,y,1,"#cbd5e1");
+    const hud="DEATHS "+(G.D|0)+"  TIME "+mm+":"+(ss<10?"0":"")+ss;
+    const tw=hud.length*6 - 1, xHud=(w - tw - 6)|0, yHud=4; // scale=1
+    c.fillStyle="#0007"; c.fillRect(xHud-3,yHud-2,tw+6,11);
+    D(c,hud,xHud+1,yHud+1,1,"#000"); D(c,hud,xHud,yHud,1,"#cbd5e1");
+
+    // 🆕 simple center-top toast (no UI dependency)
+    if(introToastT>0){
+      const text = "No more help now - you got this :)";
+      const padX=6, padY=6, boxH=12;
+      const tw2 = text.length*6 - 1;
+      const x = ((w - tw2)/2)|0;
+      const y = (h*0.18)|0; // a bit below top
+      // subtle fade in/out
+      const tNorm = 1 - (introToastT/INTRO_TOAST_DUR); // 0→1
+      const fadeIn = Math.min(1, tNorm/0.15);
+      const fadeOut = Math.min(1, introToastT/0.25);
+      const aToast = Math.max(0, Math.min(fadeIn, fadeOut));
+      c.save();
+      c.globalAlpha = aToast;
+      c.fillStyle="#0009";
+      c.fillRect(x-padX, y-padY, tw2+padX*2, boxH+padY*2);
+      D(c,text,x+1,y+1,1,"#000");
+      D(c,text,x,y,1,"#e5e7eb");
+      c.restore();
+    }
   }
 };

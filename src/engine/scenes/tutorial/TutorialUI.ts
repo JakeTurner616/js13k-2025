@@ -39,6 +39,10 @@ let wtoasts: WToast[] = [];
 type Ping = { wx: number; wy: number; t: number; dur: number; col: string };
 let pings: Ping[] = [];
 
+// Win suppression timer (used to hide HUD prompt/banner while showing win toast near player)
+type WinSuppress = { t: number; dur: number } | null;
+let winSuppress: WinSuppress = null;
+
 // ————————————————————————————————————————————————————————————————————————
 // Highlight “burst” timers (smooth fade)
 // ————————————————————————————————————————————————————————————————————————
@@ -237,6 +241,7 @@ export function resetAll() {
   greyBurstT  = greyBurstDur  = 0;
   spikeBurstT = spikeBurstDur = 0;
   portalHintState = PortalHintState.Off;
+  winSuppress = null;
 }
 
 export function tick(dt:number) {
@@ -248,6 +253,12 @@ export function tick(dt:number) {
   if (blackBurstT > 0) blackBurstT -= dt;
   if (greyBurstT  > 0) greyBurstT  -= dt;
   if (spikeBurstT > 0) spikeBurstT -= dt;
+
+  // win suppression timer
+  if (winSuppress) {
+    winSuppress.t += dt;
+    if (winSuppress.t >= winSuppress.dur) winSuppress = null;
+  }
 }
 
 // Hint state controls
@@ -290,6 +301,18 @@ export function pushWorldToastText(text: string, wx: number, wy: number, dur = 2
   }
   wtoasts.push({ text, wx, wy, t: 0, dur });
   if (wtoasts.length > 6) wtoasts.shift();
+}
+
+// Start a "win mode" suppression (hide HUD prompts/banner for `dur` seconds).
+function startWinSuppress(dur = 3.0) {
+  winSuppress = { t: 0, dur };
+}
+
+// Public helper: show near-player "Good job :)" in the same spot as jump menu
+export function showGoodJobNearPlayer(wx: number, wyTop: number, dur = 3.0) {
+  const jumpMenuOffsetY = 48; // matches drawPlayerHints menu offset
+  pushWorldToastText("Good job :)", wx, wyTop + jumpMenuOffsetY, dur);
+  startWinSuppress(dur);
 }
 
 // Bursts
@@ -379,64 +402,70 @@ export function drawHud(
 ) {
   const w = c.canvas.width;
 
-  // Compute width & draw box
-  let tw = 0;
-  const padX = 6, padY = 6;
-  const y = 8;
+  // If we are in a win-suppressed state, suppress the tutorial panel
+  // and the portal banner. (Good job toast is world-space now.)
+  const suppressTutorialPanel = !!winSuppress;
 
-  if (typeof tutorial === "string") {
-    tw = tutorial.length * 6 - 1;
-  } else {
-    tw = measureTokens(tutorial);
-  }
+  if (!suppressTutorialPanel) {
+    // Compute width & draw box
+    let tw = 0;
+    const padX = 6, padY = 6;
+    const y = 8;
 
-  const x = ((w - tw) / 2) | 0;
-  const boxH = 12;
-
-  c.fillStyle = "#0009";
-  c.fillRect(x - padX, y - padY, tw + padX * 2, boxH + padY * 2);
-
-  // Text
-  if (typeof tutorial === "string") {
-    D(c, tutorial, x + 1, y + 1, 1, "#000");
-    D(c, tutorial, x,     y,     1, "#e5e7eb");
-  } else {
-    let xx = x;
-    for (const tk of tutorial) {
-      D(c, tk.text, xx + 1, y + 1, 1, "#000");
-      D(c, tk.text, xx,     y,     1, tk.color);
-      xx += tk.text.length * 6;
+    if (typeof tutorial === "string") {
+      tw = tutorial.length * 6 - 1;
+    } else {
+      tw = measureTokens(tutorial);
     }
-  }
 
-  // State-based banner
-  // ⛔ Hide this banner as soon as AT LEAST ONE portal exists.
-  // We infer portal presence from the tokens passed in:
-  //  - "shoot the other portal" ⇒ at least one exists
-  //  - "Both portals placed"    ⇒ both exist
-  //  - otherwise we assume none are placed yet
-  let nonePlaced = true;
-  if (Array.isArray(tutorial)) {
-    const concat = tutorial.map(t => t.text).join("");
-    if (concat.includes("shoot the other portal") || concat.includes("Both portals placed")) {
-      nonePlaced = false;
-    }
-  }
-  if (portalHintState === PortalHintState.NeedsPortal && nonePlaced) {
-    const hint = "ADJUST AIM WITH MOUSE CURSOR, THEN SHOOT WITH MOUSE 1/2.";
-    const padX2 = 6, padY2 = 6;
-    const tw2 = hint.length * 6 - 1;
-    const hy = (c.canvas.height * 0.70) | 0;
-    const x2 = ((w - tw2) / 2) | 0;
+    const x = ((w - tw) / 2) | 0;
+    const boxH = 12;
 
-    c.save();
-    const breath = 0.85 + 0.15 * Math.sin(timeSec * 2.5);
-    c.globalAlpha = breath;
     c.fillStyle = "#0009";
-    c.fillRect(x2 - padX2, hy - padY2, tw2 + padX2 * 2, 8 + padY2 * 2);
-    D(c, hint, x2 + 1, hy + 1, 1, "#000");
-    D(c, hint, x2,     hy,     1, "#e5e7eb");
-    c.restore();
+    c.fillRect(x - padX, y - padY, tw + padX * 2, boxH + padY * 2);
+
+    // Text
+    if (typeof tutorial === "string") {
+      D(c, tutorial, x + 1, y + 1, 1, "#000");
+      D(c, tutorial, x,     y,     1, "#e5e7eb");
+    } else {
+      let xx = x;
+      for (const tk of tutorial) {
+        D(c, tk.text, xx + 1, y + 1, 1, "#000");
+        D(c, tk.text, xx,     y,     1, tk.color);
+        xx += tk.text.length * 6;
+      }
+    }
+
+    // State-based banner
+    // ⛔ Hide this banner as soon as AT LEAST ONE portal exists.
+    // We infer portal presence from the tokens passed in:
+    //  - "shoot the other portal" ⇒ at least one exists
+    //  - "Both portals placed"    ⇒ both exist
+    //  - otherwise we assume none are placed yet
+    let nonePlaced = true;
+    if (Array.isArray(tutorial)) {
+      const concat = tutorial.map(t => t.text).join("");
+      if (concat.includes("shoot the other portal") || concat.includes("Both portals placed")) {
+        nonePlaced = false;
+      }
+    }
+    if (portalHintState === PortalHintState.NeedsPortal && nonePlaced) {
+      const hint = "ADJUST AIM WITH MOUSE CURSOR, THEN SHOOT WITH MOUSE 1/2.";
+      const padX2 = 6, padY2 = 6;
+      const tw2 = hint.length * 6 - 1;
+      const hy = (c.canvas.height * 0.70) | 0;
+      const x2 = ((w - tw2) / 2) | 0;
+
+      c.save();
+      const breath = 0.85 + 0.15 * Math.sin(timeSec * 2.5);
+      c.globalAlpha = breath;
+      c.fillStyle = "#0009";
+      c.fillRect(x2 - padX2, hy - padY2, tw2 + padX2 * 2, 8 + padY2 * 2);
+      D(c, hint, x2 + 1, hy + 1, 1, "#000");
+      D(c, hint, x2,     hy,     1, "#e5e7eb");
+      c.restore();
+    }
   }
 }
 
