@@ -1,7 +1,7 @@
 name: Deploy to GitHub Pages
 on:
   push:
-    branches: [ main ]  # change if you use a different default branch
+    branches: [ main ]
   workflow_dispatch:
 
 permissions:
@@ -32,10 +32,13 @@ jobs:
       - name: Build
         run: npm run build
 
+      - name: Analyze bundle
+        run: npm run analyze
+
       - name: Upload artifact
         uses: actions/upload-pages-artifact@v3
         with:
-          path: ./dist  # make sure your bundler outputs here
+          path: ./dist
   deploy:
     needs: build
     runs-on: ubuntu-latest
