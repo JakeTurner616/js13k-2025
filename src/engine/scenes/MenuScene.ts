@@ -3,6 +3,7 @@ import type { AtlasAnimator } from "../../animation/AtlasAnimator";
 import { drawText as D } from "../font/fontEngine";
 import { Environment } from "./background/Environment";
 import { setScene } from "./SceneManager";
+import { getInputState } from "../input/input";
 
 type Mode="menu"|"go";
 
@@ -32,6 +33,8 @@ function makeTitleScene(mode:Mode){
     start(){
       this._env.start(); this._t0=0; this._bg0=this._bg1=0;
       const c=this.__ctx; if(c) c.imageSmoothingEnabled=false;
+
+      // Pointer (mouse/touch) path remains
       if(isMenu){
         addEventListener("click",()=>{
           suppressPointerBurst();
@@ -53,6 +56,23 @@ function makeTitleScene(mode:Mode){
     update(){
       this._bg0=this._bg1;
       this._bg1+=this._spd*(1/40);
+
+      // 🕹️ Controller path: allow A/Cross, Start/Options, or triggers to proceed
+      const inp = getInputState();
+      const pressed =
+        !!inp.jump || !!inp.reset || !!inp.shootA || !!inp.shootB;
+
+      if (pressed) {
+        suppressPointerBurst();
+        if (isMenu) {
+          dispatchEvent(new Event("portals:clear"));
+          this.onClick?.();
+        } else {
+          dispatchEvent(new Event("scene:stop-music"));
+          dispatchEvent(new Event("portals:clear"));
+          setScene(MenuScene);
+        }
+      }
     },
 
     draw(tMs:number,alpha:number){
@@ -102,8 +122,13 @@ function makeTitleScene(mode:Mode){
         }
       }
 
-      // hint (pulsing)
-      const text=isMenu?"CLICK / TAP TO START!":"CLICK / TAP TO RETURN";
+      // 🧠 Adaptive hint (mouse/touch vs controller)
+      const inp = getInputState();
+      const hasGp = inp.gamepadConnected || inp.source === "gp";
+      const text = isMenu
+        ? (hasGp ? "PRESS A / CROSS  -  OR CLICK / TAP" : "CLICK / TAP TO START!")
+        : (hasGp ? "PRESS A / CROSS  -  OR CLICK / TAP TO RETURN" : "CLICK / TAP TO RETURN");
+
       const sc=isMenu?2:1, hy=isMenu?(h*.74)|0:(h*.88)|0, tw=text.length*6*sc - sc, hx=((w-tw)/2)|0;
       c.globalAlpha=isMenu?.6+.4*S(t*4):.5+.5*S(t*3.2);
       D(c,text,hx+1,hy+1,sc,"#000"); D(c,text,hx,hy,sc,"#cbd5e1"); c.globalAlpha=1;

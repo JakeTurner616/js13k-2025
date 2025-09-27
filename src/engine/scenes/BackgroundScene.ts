@@ -100,6 +100,15 @@ export const BackgroundScene={
     if(!ctx) return;
     const c=ctx, inp=getInputState();
 
+    // 🆕 Controller support: feed RIGHT STICK aim + triggers into PortalSystem
+    if ("rx" in inp && "ry" in inp) {
+      portals.updateGamepad(
+        { rx: inp.rx, ry: inp.ry, shootA: inp.shootA, shootB: inp.shootB },
+        cam,
+        c.canvas.height
+      );
+    }
+
     // R edge → same death flow (counts once + plays SFX via onDeath)
     // ALSO: clear portals on reset
     if(inp.reset && !prevR){

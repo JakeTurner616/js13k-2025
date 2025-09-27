@@ -1,4 +1,8 @@
 // src/engine/scenes/background/PortalSystem.ts
+// ADD: right-stick-driven portal aiming crosshair + trigger fire
+// UPDATE: You can still fire with LT/RT after the crosshair fades — we remember
+//         the last valid right-stick direction (with a sane fallback).
+
 import { tb, fb, pushByHit, s2w } from "./sceneUtils";
 import { getCurrentMap } from "../../renderer/level-loader";
 import { hc } from "../../../player/hb";
@@ -23,20 +27,20 @@ type Sh = {
   o: O;
   t: number;
   th: number;
-  ban: boolean;       // true if GREY/FINISH/SPIKE or rejected by rules (e.g., too close)
-  sfx?: 1;            // guard so we play the resolution SFX exactly once
+  ban: boolean;
+  sfx?: 1;
 };
 
 type ShotInfo = {
   k: "A" | "B";
-  sx: number; sy: number;           // ray start (player center)
-  ax: number; ay: number;           // aim point (mouse world)
-  hit: boolean;                     // hit any solid tile
-  hitBlack: boolean;                // hit and NOT banned AND not rejected (e.g., too close)
-  banned: boolean;                  // hit GREY/FINISH/SPIKE or rejected by rule
-  impactX: number; impactY: number; // where ray ended or clicked
-  tileId?: number; tx?: number; ty?: number; // hit tile info (if any)
-  tooClose?: boolean;               // ✅ true when rejected by min-separation rule
+  sx: number; sy: number;
+  ax: number; ay: number;
+  hit: boolean;
+  hitBlack: boolean;
+  banned: boolean;
+  impactX: number; impactY: number;
+  tileId?: number; tx?: number; ty?: number;
+  tooClose?: boolean;
 };
 
 const T = 16, PW = 32, PH = 32, MD = 2e3, S = 640, { min, sign, hypot, PI } = Math;
@@ -50,12 +54,31 @@ export class PortalSystem {
   sx = this.sc.getContext("2d")!;
   anim: any = null; n = 1; fps = 10; fw = 32; fh = 32;
 
-  // Shot outcome callback (e.g., TutorialScene listens)
   onShot?: (info: ShotInfo) => void;
 
-  // ✅ Simple tutorial hook: minimum allowed distance between A and B (in pixels).
+  // Tutorial-only min separation rule
   private minSepPx = 0;
   private minSepPx2 = 0;
+
+  // ────────────────────────────────────────────────────────────────────────────
+  // Gamepad state (RIGHT STICK aim, LT/RT shoot, plus on-screen crosshair)
+  // ────────────────────────────────────────────────────────────────────────────
+  private gpLatchA = false; // RT rising-edge
+  private gpLatchB = false; // LT rising-edge
+  private RS_DEADZONE = 0.34;  // slightly larger to reduce twitch
+  private CAST_LEN = 2000;     // world cast length
+
+  // Firing direction vs. visualized direction
+  private aimDx = 0;           // normalized aim dir for actual casts (persisted)
+  private aimDy = 0;
+  private aimVisDx = 0;        // curved dir for crosshair UX
+  private aimVisDy = 0;
+
+  // crosshair visuals
+  private aimVisibleT = 0;     // fade timer seconds
+  private readonly AIM_SHOW_SEC = 0.75;
+  private readonly CROSS_R = 20;
+
   setMinSeparation(px: number) {
     const v = Math.max(0, px | 0);
     this.minSepPx = v;
@@ -64,13 +87,19 @@ export class PortalSystem {
 
   constructor() {
     this.sc.width = PW; this.sc.height = PH;
-
-    // 🔔 Global safety nets to guarantee portals clear across scene switches.
     addEventListener("portals:clear", () => this.clear());
-    addEventListener("scene:start-music", () => this.clear()); // fires on scene start in main.ts
+    addEventListener("scene:start-music", () => this.clear());
   }
 
-  reset() { this.A = this.B = undefined; this.Q.length = this.cool = 0; this.last = undefined; }
+  reset() {
+    this.A = this.B = undefined;
+    this.Q.length = this.cool = 0;
+    this.last = undefined;
+    this.gpLatchA = this.gpLatchB = false;
+    this.aimVisibleT = 0;
+    this.aimDx = this.aimDy = 0;
+    this.aimVisDx = this.aimVisDy = 0;
+  }
   clear() { this.reset(); }
   setPlayer(p: Player | null) { this.pl = p; }
   setAnimator(a: any) {
@@ -91,6 +120,80 @@ export class PortalSystem {
   detachInput(cv: HTMLCanvasElement) {
     if (this.h) cv.removeEventListener("mousedown", this.h), this.h = undefined;
     cv.oncontextmenu = null;
+  }
+
+  // ────────────────────────────────────────────────────────────────────────────
+  // Helpers
+  // ────────────────────────────────────────────────────────────────────────────
+  private hasStoredAim() { return (this.aimDx !== 0 || this.aimDy !== 0); }
+
+  private getFallbackAim(): { dx:number; dy:number } {
+    // If we don't have a stored aim yet, pick a sane default:
+    // use player's horizontal velocity to infer, else point right.
+    const b: any = this.pl?.body;
+    if (b && Math.abs(b.vel?.x ?? 0) > 0.05) {
+      const s = b.vel.x >= 0 ? 1 : -1;
+      return { dx: s, dy: 0 };
+    }
+    return { dx: 1, dy: 0 };
+  }
+
+  // ────────────────────────────────────────────────────────────────────────────
+  // Gamepad RIGHT-stick portal aim + LT/RT fire
+  // Call once per frame from the scene with { rx, ry, shootA, shootB }.
+  // ────────────────────────────────────────────────────────────────────────────
+  updateGamepad(inp: { rx:number; ry:number; shootA:boolean; shootB:boolean }, _cam: Cam, canvasH: number) {
+    const m = getCurrentMap(); if (!m || !this.pl) { this.gpLatchA = inp.shootA; this.gpLatchB = inp.shootB; return; }
+
+    const mag = hypot(inp.rx, inp.ry);
+
+    if (mag > this.RS_DEADZONE) {
+      // normalized ray direction for precise casts
+      const nx = inp.rx / mag;
+      const ny = inp.ry / mag;
+      this.aimDx = nx;
+      this.aimDy = ny;
+
+      // curved magnitude for smoother crosshair feel near center
+      const curvedMag = Math.pow(Math.min(1, Math.max(0, mag)), 1.5);
+      this.aimVisDx = nx * curvedMag;
+      this.aimVisDy = ny * curvedMag;
+
+      this.aimVisibleT = this.AIM_SHOW_SEC;
+
+      const b: any = this.pl.body;
+      const { cx, cy } = hc(b);
+      const dx = this.aimDx * this.CAST_LEN;
+      const dy = this.aimDy * this.CAST_LEN;
+
+      // rising edge → fire
+      if (inp.shootA && !this.gpLatchA) {
+        this.spawn("A", cx, cy, dx, dy, m, canvasH, cx + dx, cy + dy);
+      }
+      if (inp.shootB && !this.gpLatchB) {
+        this.spawn("B", cx, cy, dx, dy, m, canvasH, cx + dx, cy + dy);
+      }
+    } else {
+      // Stick centered: allow firing using the last remembered aim (or fallback).
+      if ((inp.shootA && !this.gpLatchA) || (inp.shootB && !this.gpLatchB)) {
+        const dir = this.hasStoredAim() ? { dx: this.aimDx, dy: this.aimDy } : this.getFallbackAim();
+        const b: any = this.pl.body;
+        const { cx, cy } = hc(b);
+        const dx = dir.dx * this.CAST_LEN;
+        const dy = dir.dy * this.CAST_LEN;
+
+        if (inp.shootA && !this.gpLatchA) {
+          this.spawn("A", cx, cy, dx, dy, m, canvasH, cx + dx, cy + dy);
+        }
+        if (inp.shootB && !this.gpLatchB) {
+          this.spawn("B", cx, cy, dx, dy, m, canvasH, cx + dx, cy + dy);
+        }
+      }
+    }
+
+    // update latches every frame
+    this.gpLatchA = inp.shootA;
+    this.gpLatchB = inp.shootB;
   }
 
   private cast(
@@ -134,14 +237,12 @@ export class PortalSystem {
   ) {
     const r = this.cast(sx, sy, dx, dy, m, cH);
 
-    // If no hit at all → immediate miss
     if (!r) {
       try { zzfx?.(...(wrong as unknown as number[])) } catch {}
       this.onShot?.({ k, sx, sy, ax, ay, hit: false, hitBlack: false, banned: false, impactX: ax, impactY: ay });
       return;
     }
 
-    // Determine if this otherwise-valid black hit should be rejected for being too close
     const other = k === "A" ? this.B : this.A;
     let tooClose = false;
     if (!r.ban && other && this.minSepPx2 > 0) {
@@ -149,7 +250,6 @@ export class PortalSystem {
       tooClose = (dx2 * dx2 + dy2 * dy2) < this.minSepPx2;
     }
 
-    // Notify listeners (TutorialScene) with final verdict for HUD/toasts
     const willBan = r.ban || tooClose;
     this.onShot?.({
       k, sx, sy, ax, ay,
@@ -161,7 +261,6 @@ export class PortalSystem {
       tooClose
     });
 
-    // Queue the traveling ray; mark as banned if tooClose so visuals/SFX match
     const L = hypot(dx, dy) || 1, d = hypot(r.hx - sx, r.hy - sy),
           o = (r.ax === "x" ? (r.sX > 0 ? "L" : "R") : (r.sY > 0 ? "U" : "D")) as O;
     this.Q.push({
@@ -198,16 +297,17 @@ export class PortalSystem {
   }
 
   tick() {
+    // Crosshair fade timer
+    if (this.aimVisibleT > 0) this.aimVisibleT -= 1/60;
+
     // Advance rays; resolve at end-of-travel
     for (let i = this.Q.length; i--;) {
       const s = this.Q[i]; s.t += 1 / 60;
       if (s.t >= s.th) {
-        // 🔊 Play the *correct* SFX *now* based on the resolved acceptance
         if (!s.sfx) {
           try { zzfx?.(...(s.ban ? (wrong as unknown as number[]) : (zip as unknown as number[]))); } catch {}
           s.sfx = 1;
         }
-        // Place the portal only for non-banned hits (i.e., valid black & not too close)
         if (!s.ban) (this as any)[s.k] = { k: s.k, x: s.hx, y: s.hy, a: s.a, o: s.o } as P;
         this.Q.splice(i, 1);
       }
@@ -234,7 +334,7 @@ export class PortalSystem {
     const a = this.anim; if (!a) return;
     const fi = ((t * .001 * this.fps) | 0) % this.n, sx = this.sx, sc = this.sc;
     sx.setTransform(PW / this.fw, 0, 0, PH / this.fh, 0, 0);
-    const draw = (p?: P) => {
+    const drawP = (p?: P) => {
       if (!p) return;
       sx.clearRect(0, 0, PW, PH);
       a.drawFrame(sx as any, "portal", fi, 0, 0);
@@ -245,6 +345,47 @@ export class PortalSystem {
       ctx.drawImage(sc, 0, 0, PW, PH, -PW / 2, -PH / 2, PW, PH);
       ctx.restore();
     };
-    draw(this.A); draw(this.B);
+    drawP(this.A); drawP(this.B);
+
+    // ──────────────────────────────────────────────────────────────────────────
+    // circular crosshair (right-stick aim helper) around the player
+    // ──────────────────────────────────────────────────────────────────────────
+    if (this.aimVisibleT > 0 && this.pl) {
+      const b: any = this.pl.body;
+      const { cx, cy } = hc(b);
+      const fade = Math.max(0, Math.min(1, this.aimVisibleT / this.AIM_SHOW_SEC));
+
+      const r = this.CROSS_R;
+      const px = cx + this.aimVisDx * r;
+      const py = cy + this.aimVisDy * r;
+
+      ctx.save();
+      ctx.globalAlpha = 0.85 * fade;
+      // ring
+      ctx.strokeStyle = "#ffffff81";
+      ctx.lineWidth = 1;
+      ctx.beginPath();
+      ctx.arc(cx | 0, cy | 0, r, 0, PI * 2);
+      ctx.stroke();
+
+      // direction line
+      ctx.globalAlpha = 0.9 * fade;
+      ctx.strokeStyle = "#7aa2ff";
+      ctx.beginPath();
+      ctx.moveTo(cx | 0, cy | 0);
+      ctx.lineTo(px | 0, py | 0);
+      ctx.stroke();
+
+      // tip dot
+      ctx.globalAlpha = 1 * fade;
+      ctx.fillStyle = "#fff";
+      ctx.beginPath();
+      ctx.arc(px | 0, py | 0, 2, 0, PI * 2);
+      ctx.fill();
+
+
+
+      ctx.restore();
+    }
   }
 }

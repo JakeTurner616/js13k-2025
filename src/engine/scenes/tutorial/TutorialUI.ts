@@ -1,12 +1,7 @@
 // src/engine/scenes/tutorial/TutorialUI.ts
 //
-// Tutorial UI module: world-space toasts, pings, tile-corner highlights,
-// the state-based portal banner, and near-player jump/aim/release hints.
-// Now with screen-clamped toasts/hints so boxes don't spill off-canvas,
-// and color-coded M1/M2 in the top-of-screen prompt.
-// NOTE: The near-player jump menu is SUPPRESSED until BOTH portals are placed,
-// and now includes a 4th, state-aware line suggesting where to aim the jump
-// (nearest BLUE/ORANGE portal, or END GOAL above checkpoint height).
+// Tutorial UI module…
+// (header comments unchanged)
 
 import { drawText as D } from "../../font/fontEngine";
 import { getCurrentMap } from "../../renderer/level-loader";
@@ -18,6 +13,18 @@ const TILE = 16;
 const GREY_TILE_ID  = 2;
 const FINISH_ID     = 3;
 const SPIKE_ID      = 4;
+
+// ————————————————————————————————————————————————————————————————————————
+// Control-mode awareness (mouse/keyboard vs gamepad)
+// ————————————————————————————————————————————————————————————————————————
+type ControlMode = "kbd" | "gp";
+let controlMode: ControlMode = "kbd";
+
+/** Scene calls this each frame with latest input source. */
+export function setControlMode(mode: ControlMode, _gamepadConnected: boolean) {
+  // We ignore mere connection; language switches only when last input was gamepad.
+  controlMode = mode;
+}
 
 // ————————————————————————————————————————————————————————————————————————
 // Portal hint state (no manual help toggle)
@@ -39,7 +46,7 @@ let wtoasts: WToast[] = [];
 type Ping = { wx: number; wy: number; t: number; dur: number; col: string };
 let pings: Ping[] = [];
 
-// Win suppression timer (used to hide HUD prompt/banner while showing win toast near player)
+// Win suppression timer
 type WinSuppress = { t: number; dur: number } | null;
 let winSuppress: WinSuppress = null;
 
@@ -52,7 +59,7 @@ let greyBurstT  = 0, greyBurstDur  = 0;
 let spikeBurstT = 0, spikeBurstDur = 0;
 
 // ————————————————————————————————————————————————————————————————————————
-// Internal helpers
+// Internal helpers (…unchanged…)
 // ————————————————————————————————————————————————————————————————————————
 
 const TOAST_MERGE_RADIUS = 14;
@@ -104,7 +111,7 @@ function measureTokens(tokens: Token[]) {
 }
 
 // ————————————————————————————————————————————————————————————————————————
-// Screen-space clamping helpers
+// Screen-space clamping helpers & label drawing (…unchanged…)
 // ————————————————————————————————————————————————————————————————————————
 
 function getScreenFromWorld(wx: number, wy: number) {
@@ -114,14 +121,7 @@ function getScreenFromWorld(wx: number, wy: number) {
   return { sx, sy };
 }
 
-function nudgeWorldForRect(
-  wx: number,
-  wy: number,
-  rectLeft: number,
-  rectTop: number,
-  rectW: number,
-  rectH: number
-) {
+function nudgeWorldForRect(wx:number, wy:number, rectLeft:number, rectTop:number, rectW:number, rectH:number) {
   if (!ctx) return { wx, wy };
   const w = ctx.canvas.width, h = ctx.canvas.height;
 
@@ -137,10 +137,6 @@ function nudgeWorldForRect(
 
   return { wx: wx + dx, wy: wy + dy };
 }
-
-// ————————————————————————————————————————————————————————————————————————
-// Label drawing with clamping
-// ————————————————————————————————————————————————————————————————————————
 
 function drawWorldLabelTokens(c:CanvasRenderingContext2D, wx:number, wy:number, tokens:Token[]) {
   const tw = measureTokens(tokens);
@@ -254,7 +250,6 @@ export function tick(dt:number) {
   if (greyBurstT  > 0) greyBurstT  -= dt;
   if (spikeBurstT > 0) spikeBurstT -= dt;
 
-  // win suppression timer
   if (winSuppress) {
     winSuppress.t += dt;
     if (winSuppress.t >= winSuppress.dur) winSuppress = null;
@@ -303,14 +298,12 @@ export function pushWorldToastText(text: string, wx: number, wy: number, dur = 2
   if (wtoasts.length > 6) wtoasts.shift();
 }
 
-// Start a "win mode" suppression (hide HUD prompts/banner for `dur` seconds).
 function startWinSuppress(dur = 3.0) {
   winSuppress = { t: 0, dur };
 }
 
-// Public helper: show near-player "Good job :)" in the same spot as jump menu
 export function showGoodJobNearPlayer(wx: number, wyTop: number, dur = 3.0) {
-  const jumpMenuOffsetY = 48; // matches drawPlayerHints menu offset
+  const jumpMenuOffsetY = 48;
   pushWorldToastText("Good job :)", wx, wyTop + jumpMenuOffsetY, dur);
   startWinSuppress(dur);
 }
@@ -320,9 +313,8 @@ export function burstBlack(dur=2.0){ blackBurstT = blackBurstDur = Math.max(blac
 export function burstGrey (dur=2.2){ greyBurstT  = greyBurstDur  = Math.max(greyBurstDur,  dur); }
 export function burstSpike(dur=2.3){ spikeBurstT = spikeBurstDur = Math.max(spikeBurstDur, dur); }
 
-// WORLD drawing (called inside world transform)
+// WORLD drawing (unchanged except using existing helpers)
 export function drawWorld(c:CanvasRenderingContext2D, timeSec:number, cam:{x:number;y:number}) {
-  // Tile highlights
   const mp = getCurrentMap();
   if (mp) {
     const vb = visibleTileBounds(cam);
@@ -362,7 +354,6 @@ export function drawWorld(c:CanvasRenderingContext2D, timeSec:number, cam:{x:num
     }
   }
 
-  // Pings
   for (const p of pings) {
     const k = p.t / p.dur;
     const a = Math.max(0, 1 - k);
@@ -377,7 +368,6 @@ export function drawWorld(c:CanvasRenderingContext2D, timeSec:number, cam:{x:num
     c.restore();
   }
 
-  // Toasts (with clamping)
   for (const wt of wtoasts) {
     const fadeIn  = Math.min(1, wt.t/0.15);
     const fadeOut = Math.min(1, (wt.dur - wt.t)/0.25);
@@ -385,9 +375,7 @@ export function drawWorld(c:CanvasRenderingContext2D, timeSec:number, cam:{x:num
     const bob = Math.sin((timeSec + wt.t)*6)*1.5;
     c.save(); c.globalAlpha = alpha;
     if (wt.tokens) drawWorldLabelTokens(c, wt.wx, wt.wy + bob, wt.tokens);
-    else if (wt.text) {
-      drawWorldLabelText(c, wt.wx, wt.wy + bob, wt.text);
-    }
+    else if (wt.text) drawWorldLabelText(c, wt.wx, wt.wy + bob, wt.text);
     c.restore();
   }
 }
@@ -402,8 +390,6 @@ export function drawHud(
 ) {
   const w = c.canvas.width;
 
-  // If we are in a win-suppressed state, suppress the tutorial panel
-  // and the portal banner. (Good job toast is world-space now.)
   const suppressTutorialPanel = !!winSuppress;
 
   if (!suppressTutorialPanel) {
@@ -437,12 +423,7 @@ export function drawHud(
       }
     }
 
-    // State-based banner
-    // ⛔ Hide this banner as soon as AT LEAST ONE portal exists.
-    // We infer portal presence from the tokens passed in:
-    //  - "shoot the other portal" ⇒ at least one exists
-    //  - "Both portals placed"    ⇒ both exist
-    //  - otherwise we assume none are placed yet
+    // Top-of-screen banner when no portals yet & needing help
     let nonePlaced = true;
     if (Array.isArray(tutorial)) {
       const concat = tutorial.map(t => t.text).join("");
@@ -451,7 +432,10 @@ export function drawHud(
       }
     }
     if (portalHintState === PortalHintState.NeedsPortal && nonePlaced) {
-      const hint = "ADJUST AIM WITH MOUSE CURSOR, THEN SHOOT WITH MOUSE 1/2.";
+      const hint =
+        controlMode === "gp"
+          ? "Aim with RIGHT STICK, shoot HIGHLIGHTED TILES"
+          : "AIM WITH MOUSE, THEN SHOOT HIGHLIGHTED TILES";
       const padX2 = 6, padY2 = 6;
       const tw2 = hint.length * 6 - 1;
       const hy = (c.canvas.height * 0.70) | 0;
@@ -470,7 +454,7 @@ export function drawHud(
 }
 
 // ————————————————————————————————————————————————————————————————————————
-// Top-of-screen prompt builders (now state-aware)
+// Top-of-screen prompt builders (state-aware + controller-aware)
 // ————————————————————————————————————————————————————————————————————————
 
 export type TokenBuilder = Token[];
@@ -480,43 +464,68 @@ export function promptForStepTokens(): Token[] {
   return tokensBoth();
 }
 
-// 🆕 Smart prompt that changes M1/M2 depending on which portal exists.
 export function promptForStepTokensSmart(hasA: boolean, hasB: boolean): Token[] {
-  if (hasA && !hasB) return tokensNeedB(); // tell user to press M2
-  if (hasB && !hasA) return tokensNeedA(); // tell user to press M1
-  if (!hasA && !hasB) return tokensBoth(); // either M1 or M2
-  return tokensBothPlaced();               // both exist: neutral tip
+  if (hasA && !hasB) return tokensNeedB(); // (A placed → need B)
+  if (hasB && !hasA) return tokensNeedA();
+  if (!hasA && !hasB) return tokensBoth();
+  return tokensBothPlaced();
 }
 
-// Convenience token sets
 export function tokensGreyGuidance(): Token[] {
-  return [
-    { text: "Use ", color: "#e5e7eb" },
-    { text: "M1",  color: "#28f" },
-    { text: " ",   color: "#e5e7eb" },
-    { text: "&",   color: "#e5e7eb" },
-    { text: " ",   color: "#e5e7eb" },
-    { text: "M2",  color: "#f80" },
-    { text: " on ", color: "#e5e7eb" },
-    { text: "BLACK", color: "#e5e7eb" },
-    { text: " tiles (", color: "#e5e7eb" },
-    { text: "not GREY", color: "#ff4d4d" },
-    { text: ")",    color: "#e5e7eb" },
-  ];
+  return controlMode === "gp"
+    ? [
+        { text: "Use ", color: "#e5e7eb" },
+        { text: "RT",  color: "#28f" },
+        { text: " ",   color: "#e5e7eb" },
+        { text: "&",   color: "#e5e7eb" },
+        { text: " ",   color: "#e5e7eb" },
+        { text: "LT",  color: "#f80" },
+        { text: " on ", color: "#e5e7eb" },
+        { text: "BLACK", color: "#e5e7eb" },
+        { text: " tiles (", color: "#e5e7eb" },
+        { text: "not GREY", color: "#ff4d4d" },
+        { text: ")",    color: "#e5e7eb" },
+      ]
+    : [
+        { text: "Use ", color: "#e5e7eb" },
+        { text: "M1",  color: "#28f" },
+        { text: " ",   color: "#e5e7eb" },
+        { text: "&",   color: "#e5e7eb" },
+        { text: " ",   color: "#e5e7eb" },
+        { text: "M2",  color: "#f80" },
+        { text: " on ", color: "#e5e7eb" },
+        { text: "BLACK", color: "#e5e7eb" },
+        { text: " tiles (", color: "#e5e7eb" },
+        { text: "not GREY", color: "#ff4d4d" },
+        { text: ")",    color: "#e5e7eb" },
+      ];
 }
 export function tokensGenericMiss(): Token[] {
-  return [
-    { text: "Use ", color: "#e5e7eb" },
-    { text: "M1",  color: "#28f" },
-    { text: " ",   color: "#e5e7eb" },
-    { text: "&",   color: "#e5e7eb" },
-    { text: " ",   color: "#e5e7eb" },
-    { text: "M2",  color: "#f80" },
-    { text: " on ", color: "#e5e7eb" },
-    { text: "BLACK", color: "#e5e7eb" },
-    { text: " tiles", color: "#e5e7eb" },
-    { text: ".", color: "#e5e7eb" },
-  ];
+  return controlMode === "gp"
+    ? [
+        { text: "Use ", color: "#e5e7eb" },
+        { text: "RT",  color: "#28f" },
+        { text: " ",   color: "#e5e7eb" },
+        { text: "&",   color: "#e5e7eb" },
+        { text: " ",   color: "#e5e7eb" },
+        { text: "LT",  color: "#f80" },
+        { text: " on ", color: "#e5e7eb" },
+        { text: "BLACK", color: "#e5e7eb" },
+        { text: " tiles", color: "#e5e7eb" },
+        { text: ".", color: "#e5e7eb" },
+      ]
+    : [
+        { text: "Use ", color: "#e5e7eb" },
+        { text: "M1",  color: "#28f" },
+        { text: " ",   color: "#e5e7eb" },
+        { text: "&",   color: "#e5e7eb" },
+        { text: " ",   color: "#e5e7eb" },
+        { text: "M2",  color: "#f80" },
+        { text: " on ", color: "#e5e7eb" },
+        { text: "BLACK", color: "#e5e7eb" },
+        { text: " tiles", color: "#e5e7eb" },
+        { text: ".", color: "#e5e7eb" },
+      ];
 }
 export function tokensAvoidSpikes(): Token[] {
   return [
@@ -526,7 +535,6 @@ export function tokensAvoidSpikes(): Token[] {
   ];
 }
 
-// 🆕 tokens for pointer tooltips / HUD depending on remaining key
 export function tokensForRemainingKey(which: "A" | "B" | "ANY"): Token[] {
   if (which === "A") return tokensNeedA();
   if (which === "B") return tokensNeedB();
@@ -534,28 +542,56 @@ export function tokensForRemainingKey(which: "A" | "B" | "ANY"): Token[] {
 }
 
 function tokensBoth(): Token[] {
-  return [
-    { text: "Aim with mouse cursor, shoot portals with ", color: "#e5e7eb" },
-    { text: "M1", color: "#28f" },
-    { text: " or ", color: "#e5e7eb" },
-    { text: "M2", color: "#f80" },
-    { text: ".", color: "#e5e7eb" },
-  ];
+  const useGp = controlMode === "gp";
+  return useGp
+    ? [
+        { text: "Aim with ", color: "#e5e7eb" },
+        { text: "RIGHT STICK", color: "#e5e7eb" },
+        { text: ", shoot with ", color: "#e5e7eb" },
+        { text: "RT", color: "#28f" },
+        { text: " or ", color: "#e5e7eb" },
+        { text: "LT", color: "#f80" },
+        { text: ".", color: "#e5e7eb" },
+      ]
+    : [
+        { text: "Aim with mouse cursor, shoot portals with ", color: "#e5e7eb" },
+        { text: "M1", color: "#28f" },
+        { text: " or ", color: "#e5e7eb" },
+        { text: "M2", color: "#f80" },
+        { text: ".", color: "#e5e7eb" },
+      ];
 }
+
 function tokensNeedA(): Token[] {
-  return [
-    { text: "Aim with mouse cursor, shoot the other portal with ", color: "#e5e7eb" },
-    { text: "M1", color: "#28f" },
-    { text: ".", color: "#e5e7eb" },
-  ];
+  const useGp = controlMode === "gp";
+  return useGp
+    ? [
+        { text: "Aim with RIGHT STICK, shoot the other portal with ", color: "#e5e7eb" },
+        { text: "RT", color: "#28f" },
+        { text: ".", color: "#e5e7eb" },
+      ]
+    : [
+        { text: "Aim with mouse cursor, shoot the other portal with ", color: "#e5e7eb" },
+        { text: "M1", color: "#28f" },
+        { text: ".", color: "#e5e7eb" },
+      ];
 }
+
 function tokensNeedB(): Token[] {
-  return [
-    { text: "Aim with mouse cursor, shoot the other portal with ", color: "#e5e7eb" },
-    { text: "M2", color: "#f80" },
-    { text: ".", color: "#e5e7eb" },
-  ];
+  const useGp = controlMode === "gp";
+  return useGp
+    ? [
+        { text: "Aim with RIGHT STICK, shoot the other portal with ", color: "#e5e7eb" },
+        { text: "LT", color: "#f80" },
+        { text: ".", color: "#e5e7eb" },
+      ]
+    : [
+        { text: "Aim with mouse cursor, shoot the other portal with ", color: "#e5e7eb" },
+        { text: "M2", color: "#f80" },
+        { text: ".", color: "#e5e7eb" },
+      ];
 }
+
 function tokensBothPlaced(): Token[] {
   return [
     { text: "Both portals placed - Use them to traverse!", color: "#e5e7eb" },
@@ -563,7 +599,7 @@ function tokensBothPlaced(): Token[] {
 }
 
 // ————————————————————————————————————————————————————————————————————————
-// NEW: Near-player contextual hints for jump/aim/release (with clamping)
+// Near-player contextual hints (controller-aware wording)
 // ————————————————————————————————————————————————————————————————————————
 
 export type JumpHintState = {
@@ -573,10 +609,7 @@ export type JumpHintState = {
   aimLeft: boolean;
   aimRight: boolean;
   powerDown: boolean;
-  // Gate this whole menu until both portals exist
   bothPortalsPlaced?: boolean;
-  // 🆕 State-aware suggestion for the 4th line:
-  // "A" → aim toward BLUE portal, "B" → ORANGE portal, "GOAL" → end goal
   suggestTo?: "A" | "B" | "GOAL" | null;
 };
 
@@ -588,41 +621,35 @@ export function drawPlayerHints(
   wy: number,
   s: JumpHintState
 ) {
-  // ⛔ Do not show ANY of the near-player jump menu until both portals exist
-  if (!s.bothPortalsPlaced) {
-    groundedSinceMs = -1;
-    return;
-  }
-
-  if (s.recentlyReleased) {
-    groundedSinceMs = -1;
-    return;
-  }
+  if (!s.bothPortalsPlaced) { groundedSinceMs = -1; return; }
+  if (s.recentlyReleased)   { groundedSinceMs = -1; return; }
 
   const now = (typeof performance !== "undefined" ? performance.now() : Date.now());
-  if (!s.grounded) {
-    groundedSinceMs = -1;
-    return;
-  }
+  if (!s.grounded) { groundedSinceMs = -1; return; }
   if (groundedSinceMs < 0) groundedSinceMs = now;
   if (now - groundedSinceMs < 500) return;
 
   const padX = 4, padY = 4, lh = 8;
   const y = wy + 24;
 
-  // Build menu lines and optional per-line tokens (so BLUE/ORANGE can be colorized).
-  // Ensure "Release to jump" is ALWAYS last while charging.
+  const useGp = controlMode === "gp";
+
   let lines: string[] = [];
   let lineTokens: (Token[] | null)[] = [];
 
   if (s.jumpHeld) {
-    lines.push("• Aim A/D or ←/→");
-    lineTokens.push(null);
+    if (useGp) {
+      lines.push("• Aim with Left Stick");
+      lineTokens.push(null);
+      lines.push("• Adjust power with LS↓ or ↓");
+      lineTokens.push(null);
+    } else {
+      lines.push("• Aim A/D or ←/→");
+      lineTokens.push(null);
+      lines.push("• Adjust power S/↓");
+      lineTokens.push(null);
+    }
 
-    lines.push("• Adjust power S/↓");
-    lineTokens.push(null);
-
-    // State-aware suggestion BEFORE the release line
     if (s.suggestTo === "A") {
       lines.push("• Aim toward the BLUE portal");
       lineTokens.push([
@@ -642,15 +669,13 @@ export function drawPlayerHints(
       lineTokens.push(null);
     }
 
-    // Always finish with release
-    lines.push("• Release to jump");
+    lines.push(useGp ? "• Release A (Cross) to jump" : "• Release to jump");
     lineTokens.push(null);
   } else {
-    lines = ["• Hold SPACE"];
+    lines = [useGp ? "• Hold A (Cross)" : "• Hold SPACE"];
     lineTokens = [null];
   }
 
-  // Measure width using tokens when present
   const widths = lines.map((ln, i) =>
     lineTokens[i] ? measureTokens(lineTokens[i] as Token[]) : (ln.length * 6 - 1)
   );
@@ -672,7 +697,6 @@ export function drawPlayerHints(
   c.fillStyle = "#000a";
   c.fillRect(x0 - padX, yy - padY, boxW, boxH);
 
-  // Draw each line; if tokens exist, draw colored segments
   for (let i = 0; i < lines.length; i++) {
     const segs = lineTokens[i];
     if (segs) {

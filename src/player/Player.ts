@@ -1,6 +1,8 @@
 // src/player/Player.ts
 // Player w/ tiny “celebrate win” state: plays death anim (no respawn) briefly.
 // Collisions never disabled. No bad-aim system.
+// 🆕 No functional changes needed here beyond passing through the richer input object.
+//     Core.aim() now reads optional i.lx / i.ly for analog aiming.
 
 import { applyPhysics } from "./Physics";
 import { AN, A, ST, G, cos, sin, face, pre as preFSM, post as postFSM, setAnim } from "./Core";
@@ -52,23 +54,24 @@ export function createPlayer(a: Animator, hooks: PlayerHooks = {}) {
   const die = (reason: string) => {
     if (p._dead) return;
     p._dead = true; p._deathT = p._respawn | 0;
-    b.pos.x = p._spawn.x; b.pos.y = p._spawn.y;   // death anim plays at spawn (consistent with spikes/OOB)
+    b.pos.x = p._spawn.x; b.pos.y = p._spawn.y;   // death anim plays at spawn
     setAnim(p, A.death);
     b.vel.x = b.vel.y = 0; b.gravity = 0;
     b.grounded = false;
     hooks.onDeath?.(reason);
   };
 
-  // NEW: thematic reset uses the same death flow
+  // Thematic reset uses the same death flow
   const reset = () => die("reset");
 
-  function update(i: Partial<{ left: boolean; right: boolean; up: boolean; down: boolean; jump: boolean }>, ctx: CanvasRenderingContext2D) {
+  function update(i: Partial<{ left: boolean; right: boolean; up: boolean; down: boolean; jump: boolean; lx: number; ly: number }>, ctx: CanvasRenderingContext2D) {
     const LFT = !!i.left, RGT = !!i.right, U = !!i.up, D = !!i.down, J = !!i.jump;
 
     if (p._winT > 0) { p._winT--; p._wasJ = J; return; }
     if (p._dead) { p._deathT > 0 ? p._deathT-- : respawn(); p._wasJ = J; return; }
 
-    preFSM(p, { left: LFT, right: RGT, up: U, down: D, jump: J });
+    // Pass through analog values if present; Core.aim() will use them during jump-hold
+    preFSM(p, { left: LFT, right: RGT, up: U, down: D, jump: J, lx: i.lx, ly: i.ly });
     applyPhysics(b, ctx);
     postFSM(p);
 
@@ -102,6 +105,5 @@ export function createPlayer(a: Animator, hooks: PlayerHooks = {}) {
 
   const spike = () => die("spikes");
 
-  // expose reset
   return { body: b, update, draw, onTeleported, setSpawn, setLevelBounds, respawn, celebrateWin, spike, reset };
 }
