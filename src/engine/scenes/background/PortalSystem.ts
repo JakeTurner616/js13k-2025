@@ -23,19 +23,20 @@ type Sh = {
   o: O;
   t: number;
   th: number;
-  ban: boolean;       // true if first hit was GREY/FINISH/SPIKE
+  ban: boolean;       // true if GREY/FINISH/SPIKE or rejected by rules (e.g., too close)
   sfx?: 1;            // guard so we play the resolution SFX exactly once
 };
 
 type ShotInfo = {
   k: "A" | "B";
-  sx: number; sy: number;       // ray start (player center)
-  ax: number; ay: number;       // aim point (mouse world)
-  hit: boolean;                 // hit any solid tile
-  hitBlack: boolean;            // hit and NOT banned
-  banned: boolean;              // hit GREY/FINISH/SPIKE etc.
+  sx: number; sy: number;           // ray start (player center)
+  ax: number; ay: number;           // aim point (mouse world)
+  hit: boolean;                     // hit any solid tile
+  hitBlack: boolean;                // hit and NOT banned AND not rejected (e.g., too close)
+  banned: boolean;                  // hit GREY/FINISH/SPIKE or rejected by rule
   impactX: number; impactY: number; // where ray ended or clicked
   tileId?: number; tx?: number; ty?: number; // hit tile info (if any)
+  tooClose?: boolean;               // ✅ true when rejected by min-separation rule
 };
 
 const T = 16, PW = 32, PH = 32, MD = 2e3, S = 640, { min, sign, hypot, PI } = Math;
@@ -51,6 +52,15 @@ export class PortalSystem {
 
   // Shot outcome callback (e.g., TutorialScene listens)
   onShot?: (info: ShotInfo) => void;
+
+  // ✅ Simple tutorial hook: minimum allowed distance between A and B (in pixels).
+  private minSepPx = 0;
+  private minSepPx2 = 0;
+  setMinSeparation(px: number) {
+    const v = Math.max(0, px | 0);
+    this.minSepPx = v;
+    this.minSepPx2 = v * v;
+  }
 
   constructor() {
     this.sc.width = PW; this.sc.height = PH;
@@ -124,28 +134,40 @@ export class PortalSystem {
   ) {
     const r = this.cast(sx, sy, dx, dy, m, cH);
 
-    // Inform listeners (tutorial) about shot outcome
+    // If no hit at all → immediate miss
     if (!r) {
-      // MISS → play WRONG immediately and exit (no travel ray)
       try { zzfx?.(...(wrong as unknown as number[])) } catch {}
       this.onShot?.({ k, sx, sy, ax, ay, hit: false, hitBlack: false, banned: false, impactX: ax, impactY: ay });
       return;
-    } else {
-      const hitBlack = !r.ban;
-      this.onShot?.({
-        k, sx, sy, ax, ay, hit: true, hitBlack, banned: r.ban,
-        impactX: r.hx, impactY: r.hy, tileId: r.id, tx: r.tx, ty: r.ty
-      });
     }
 
-    // 👇 DEFER SFX to *resolution time* (end of ray) to avoid early/incorrect "wrong" beeps.
-    // We still push a traveling ray so visuals match.
+    // Determine if this otherwise-valid black hit should be rejected for being too close
+    const other = k === "A" ? this.B : this.A;
+    let tooClose = false;
+    if (!r.ban && other && this.minSepPx2 > 0) {
+      const dx2 = r.hx - other.x, dy2 = r.hy - other.y;
+      tooClose = (dx2 * dx2 + dy2 * dy2) < this.minSepPx2;
+    }
+
+    // Notify listeners (TutorialScene) with final verdict for HUD/toasts
+    const willBan = r.ban || tooClose;
+    this.onShot?.({
+      k, sx, sy, ax, ay,
+      hit: true,
+      hitBlack: !willBan,
+      banned: willBan,
+      impactX: r.hx, impactY: r.hy,
+      tileId: r.id, tx: r.tx, ty: r.ty,
+      tooClose
+    });
+
+    // Queue the traveling ray; mark as banned if tooClose so visuals/SFX match
     const L = hypot(dx, dy) || 1, d = hypot(r.hx - sx, r.hy - sy),
           o = (r.ax === "x" ? (r.sX > 0 ? "L" : "R") : (r.sY > 0 ? "U" : "D")) as O;
     this.Q.push({
       k, x: sx, y: sy, dx: dx / L, dy: dy / L,
       hx: r.hx, hy: r.hy, a: ang(o), o,
-      t: 0, th: min(d, MD) / S, ban: r.ban
+      t: 0, th: min(d, MD) / S, ban: willBan
     });
   }
 
@@ -180,15 +202,12 @@ export class PortalSystem {
     for (let i = this.Q.length; i--;) {
       const s = this.Q[i]; s.t += 1 / 60;
       if (s.t >= s.th) {
-        // 🔊 Play the *correct* SFX *now* based on the resolved hit (`ban`)
+        // 🔊 Play the *correct* SFX *now* based on the resolved acceptance
         if (!s.sfx) {
-          try {
-            if (s.ban) zzfx?.(...(wrong as unknown as number[]));
-            else zzfx?.(...(zip as unknown as number[]));
-          } catch {}
+          try { zzfx?.(...(s.ban ? (wrong as unknown as number[]) : (zip as unknown as number[]))); } catch {}
           s.sfx = 1;
         }
-        // Place the portal only for valid hits
+        // Place the portal only for non-banned hits (i.e., valid black & not too close)
         if (!s.ban) (this as any)[s.k] = { k: s.k, x: s.hx, y: s.hy, a: s.a, o: s.o } as P;
         this.Q.splice(i, 1);
       }
